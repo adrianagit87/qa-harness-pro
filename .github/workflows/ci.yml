@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sintaxis de los scripts (bash -n)
+        run: |
+          find . -name '*.sh' -not -path './.git/*' -print0 | while IFS= read -r -d '' f; do
+            echo "bash -n $f"
+            bash -n "$f"
+          done
+
+      - name: JSON versionados válidos
+        run: |
+          git ls-files '*.json' | while IFS= read -r f; do
+            echo "json check: $f"
+            python3 -m json.tool "$f" > /dev/null
+          done
+
+      - name: Unit tests de los hooks
+        run: python3 -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Smoke tests
+        run: bash tests/smoke.sh

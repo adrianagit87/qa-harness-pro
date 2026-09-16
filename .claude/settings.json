@@ -1,0 +1,70 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__atlassian__getJiraIssue",
+      "mcp__atlassian__searchJiraIssuesUsingJql",
+      "mcp__atlassian__searchConfluenceUsingCql",
+      "mcp__atlassian__getConfluencePage",
+      "mcp__atlassian__getConfluenceSpaces",
+      "mcp__notion__notion-search",
+      "mcp__notion__notion-fetch"
+    ],
+    "ask": [
+      "mcp__atlassian__addCommentToJiraIssue",
+      "mcp__atlassian__createJiraIssue",
+      "mcp__atlassian__editJiraIssue",
+      "mcp__atlassian__createConfluencePage",
+      "mcp__atlassian__updateConfluencePage",
+      "mcp__notion__notion-create-pages",
+      "mcp__notion__notion-update-page"
+    ],
+    "deny": [
+      "mcp__atlassian__transitionJiraIssue",
+      "Read(./.env)",
+      "Read(./**/*.local.json)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/hooks/block-destructive-command.py"
+            ]
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__atlassian__addCommentToJiraIssue|mcp__atlassian__createJiraIssue|mcp__atlassian__editJiraIssue|mcp__atlassian__createConfluencePage|mcp__atlassian__updateConfluencePage|mcp__notion__notion-create-pages|mcp__notion__notion-update-page",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/hooks/validate-external-write.py"
+            ]
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/hooks/check-after-edit.py"
+            ],
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}

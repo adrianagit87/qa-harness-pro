@@ -1,0 +1,13 @@
+---
+description: Método QA — gate de calidad, casos de prueba y cierre de ciclo. Usar siempre que se analice un ticket de Jira, se generen casos de prueba, se cierre un ciclo de pruebas o se evalúe automatización.
+alwaysApply: true
+---
+
+# QA Harness Pro
+
+El método, la carga de config y las reglas que no se rompen viven en **`AGENTS.md`**, en la raíz
+de este repo. **Leelo antes de operar.** Es la fuente única: no repitas su contenido acá ni
+trabajes de memoria.
+
+Esta rule existe solo como red: si tu versión de Cursor no levanta `AGENTS.md`, igual llegás al
+método por acá.

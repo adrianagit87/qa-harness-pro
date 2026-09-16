@@ -1,0 +1,18 @@
+# Datos reales — NUNCA se versionan (solo se versiona _template.json y profile.example.json)
+companies/*.json
+!companies/_template.json
+profile/*.json
+!profile/profile.example.json
+
+# Secretos y config local
+# (.mcp.json SÍ se versiona: no contiene secretos — la autenticación es OAuth en el navegador)
+.env
+.env.*
+*.local.json
+
+# Ruido
+node_modules/
+.DS_Store
+__pycache__/
+*.py[cod]
+.atl/

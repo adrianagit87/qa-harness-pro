@@ -1,0 +1,62 @@
+{
+  "company": {
+    "name": "Tu Empresa",
+    "key": "ACME"
+  },
+  "tracker": {
+    "type": "jira",
+    "host": "tuempresa.atlassian.net",
+    "cloudId": "PON-AQUI-TU-CLOUD-ID-DE-JIRA",
+    "ticketPrefixes": [
+      "PROJ"
+    ],
+    "browseUrlPattern": "https://tuempresa.atlassian.net/browse/{KEY}"
+  },
+  "environments": {
+    "default": "DEV",
+    "list": [
+      {
+        "key": "DEV",
+        "label": "DESARROLLO",
+        "emoji": "🏁",
+        "final": false,
+        "tone": "técnico",
+        "separateClosurePage": false
+      },
+      {
+        "key": "PROD",
+        "label": "PRODUCCIÓN",
+        "emoji": "🚀",
+        "final": true,
+        "tone": "formal",
+        "separateClosurePage": true
+      }
+    ]
+  },
+  "docs": {
+    "backend": "confluence",
+    "jira": {
+      "qaProject": "QAPROJ",
+      "containerIssueType": "Epic",
+      "caseIssueType": "Tarea",
+      "containerTitlePattern": "Pruebas QA - [{service}] - {feature}",
+      "caseTitlePattern": "[{DEV_TICKET}][QA] {CP_ID} — {title}",
+      "caseIdPattern": "CP-{NN}",
+      "linkType": ""
+    },
+    "confluence": {
+      "spaceKey": "QA",
+      "parentPageId": "PON-AQUI-EL-ID-DE-LA-PAGINA-PADRE"
+    },
+    "notion": {
+      "parents": {
+        "casos": "PON-AQUI-EL-ID-DEL-PARENT-DE-NOTION"
+      }
+    }
+  },
+  "automation": {
+    "framework": "",
+    "workspacePath": "",
+    "subprojects": []
+  }
+}
