@@ -60,7 +60,7 @@ Este harness es, en sí mismo, el modelo que enseña:
 
 | Concepto | Dónde lo ves en este recurso |
 |---|---|
-| **Harness** | El repo entero: tools (MCP) + método (skills) + reglas (`AGENTS.md` y su equivalente por herramienta: `CLAUDE.md`, la rule de Cursor, `GEMINI.md`) + config alrededor del modelo |
+| **Harness** | El repo entero: tools (MCP) + método (skills) + reglas (`AGENTS.md` como fuente única; el `CLAUDE.md` de Claude Code y el `GEMINI.md` de Antigravity lo importan y solo agregan lo propio de su runtime, y la rule de Cursor apunta a él) + config alrededor del modelo |
 | **Goal** | El gate (✅/⚠️/❌), el conteo exacto de casos, el pass rate del cierre — criterios verificables en cada etapa |
 | **Loop** | Cada skill itera: leer → analizar → proponer borrador → tu feedback → ajustar → publicar |
 

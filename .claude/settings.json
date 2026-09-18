@@ -33,7 +33,7 @@
             "type": "command",
             "command": "python3",
             "args": [
-              "${CLAUDE_PROJECT_DIR}/hooks/block-destructive-command.py"
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/block-destructive-command.py"
             ]
           }
         ]
@@ -45,7 +45,7 @@
             "type": "command",
             "command": "python3",
             "args": [
-              "${CLAUDE_PROJECT_DIR}/hooks/validate-external-write.py"
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/validate-external-write.py"
             ]
           }
         ]
@@ -59,7 +59,7 @@
             "type": "command",
             "command": "python3",
             "args": [
-              "${CLAUDE_PROJECT_DIR}/hooks/check-after-edit.py"
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/check-after-edit.py"
             ],
             "timeout": 120
           }

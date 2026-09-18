@@ -3,11 +3,12 @@
 Seis pasos. No necesitas saber programar; sí tener instalada una de las tres herramientas
 soportadas: **Claude Code**, **Cursor** o **Antigravity (Gemini)**.
 
-Los pasos 1 a 4 son iguales para las tres. El paso 5 cambia según cuál uses. Puedes instalar más de
-una: comparten las mismas skills y la misma configuración.
+Los pasos 1 a 4 son iguales para las tres. En el paso 5 eliges cuál con `--agent`. Puedes instalar
+más de una: comparten las mismas skills y la misma configuración.
 
-**Necesitas también:** `python3` (los hooks son scripts de Python) y, si vas a instalar para Cursor
-o Antigravity, `jq` (los instaladores fusionan JSON con él).
+**Necesitas también:** `python3` (los hooks son scripts de Python) y, si vas a instalar con
+`--agent cursor`, `--agent antigravity` o `--agent all`, también `jq`: es lo que usa el instalador
+para fusionar tu JSON sin pisarlo. Con `--agent claude` no hace falta, y el instalador no te lo pide.
 
 ## 1. Clona y entra
 
@@ -18,6 +19,10 @@ cd ~/Proyectos/qa-harness-pro
 
 > Déjalo en un lugar **permanente**. La instalación crea enlaces y rutas absolutas que apuntan acá:
 > si después mueves o borras la carpeta, el harness deja de funcionar.
+>
+> Si aun así lo mueves o lo vuelves a clonar, la reparación es reinstalar desde la ruta nueva: el
+> instalador **reemplaza** las entradas de la instalación anterior en vez de sumarles otras. Y si te
+> olvidas, `./validate-config.sh` te lo marca como error (paso 4).
 
 ## 2. Configura tu empresa
 
@@ -66,23 +71,61 @@ que bloquean comandos destructivos, validan ediciones y revisan publicaciones ex
 Vale correrlo de nuevo **después** del paso 5: también verifica que las skills quedaron enlazadas
 de verdad (symlinks que resuelven a este repo, no rotos ni apuntando a otro lado).
 
-> **Qué cubre y qué no.** La config de empresa y perfil las valida para cualquier herramienta. La
-> capa de seguridad que inspecciona es la de **Claude Code** (`.claude/settings.json` y `.mcp.json`).
-> Para Cursor y Antigravity, la verificación equivalente son los pasos 6a y 6b de más abajo: ahí se
-> comprueba, en vivo, que las reglas llegan y que el gate muerde.
+> **Qué cubre.** La config de empresa y perfil las valida para cualquier herramienta. La capa de
+> seguridad la inspecciona en **los tres runtimes**: `.claude/settings.json` y `.mcp.json` para
+> Claude Code; `~/.cursor/hooks.json`, `~/.cursor/mcp.json` y la rule `.cursor/rules/qa-harness.mdc`
+> de este repo para Cursor; y `hooks.json`, `mcp_config.json` y `skills.json` de `~/.gemini/config/`
+> para Antigravity.
+>
+> **Y que lo instalado apunte acá.** Si algo que dejó el harness fuera del repo quedó apuntando a
+> **otro clon** o a una **ruta que ya no existe**, lo reporta como error y te dice con qué comando
+> repararlo. Un gate que corre desde otro clon valida las reglas de ese otro clon; uno que apunta a
+> una ruta borrada no corre y no avisa.
+>
+> **Qué NO cubre.** Que las reglas efectivamente le lleguen al agente y que el gate muerda en vivo:
+> eso son los pasos 6a y 6b de más abajo, y no los reemplaza ningún script.
+
+`./validate-config.sh` también acepta `--agent`, con los mismos valores que el instalador:
+
+```bash
+./validate-config.sh --agent cursor    # solo Cursor
+./validate-config.sh --agent all       # los tres, estén instalados o no
+./validate-config.sh --help            # los valores válidos
+```
+
+Sin `--agent` valida lo portable (perfil y empresa) más Claude Code siempre, y suma Cursor o
+Antigravity **solo si encuentra el harness instalado ahí**. Con un `--agent` explícito le estás
+afirmando que ese runtime está instalado, así que no encontrarlo **sí** es un error.
 
 ## 5. Instala para tu herramienta
+
+Hay **un solo instalador** y le dices para qué herramienta con `--agent`:
+
+```bash
+./install.sh --agent claude        # Claude Code
+./install.sh --agent cursor        # Cursor
+./install.sh --agent antigravity   # Antigravity (Gemini)
+./install.sh --agent all           # las tres, en ese orden
+./install.sh --help                # la ayuda
+```
+
+`--agent` es **obligatorio**: `./install.sh` a secas imprime la ayuda y sale con error, a propósito.
+Elegir Claude Code por default sería un éxito ambiguo — quien vino por Cursor vería un ✅ y se iría
+sin reglas. Con `--agent all` se instalan las tres por separado: si una falla, las otras quedan
+instaladas igual y el comando te dice cuál falló.
 
 ### 5a. Claude Code
 
 ```bash
-./install.sh
+./install.sh --agent claude
 ```
 
-Enlaza las skills en `~/.claude/skills` y, si todavía no tienes uno, copia `claude/CLAUDE.md` como
-`~/.claude/CLAUDE.md` (si ya tienes el tuyo, no lo toca). Los servers MCP ya vienen definidos en
-**`.mcp.json`**, versionado en el repo: no contiene ningún secreto, la autenticación es OAuth en el
-navegador. No hay nada que copiar.
+Enlaza las skills en `~/.claude/skills` y, si todavía no tienes uno, instala
+`adapters/claude/CLAUDE.md` como `~/.claude/CLAUDE.md` resolviendo la ruta absoluta del repo en su
+import de `AGENTS.md`. Si ya tienes el tuyo no lo toca: te imprime la línea exacta que tienes que
+agregarle para que las reglas te lleguen igual. Los
+servers MCP ya vienen definidos en **`.mcp.json`**, versionado en el repo: no contiene ningún
+secreto, la autenticación es OAuth en el navegador. No hay nada que copiar.
 
 Después, abre Claude Code **en la raíz de este repo**:
 
@@ -93,8 +136,8 @@ Después, abre Claude Code **en la raíz de este repo**:
   `docs.backend` es `notion`). Sin pegar tokens.
 - ¿Ya tienes skills con estos mismos nombres de otra instalación en `~/.claude/skills`?
   `install.sh` las respalda con timestamp antes de enlazar (no pierde nada), pero si quieres
-  probar el harness sin tocar tu setup, usa `CLAUDE_DIR=/otra/ruta ./install.sh` y abre Claude
-  Code con `CLAUDE_CONFIG_DIR=/otra/ruta`.
+  probar el harness sin tocar tu setup, usa `CLAUDE_DIR=/otra/ruta ./install.sh --agent claude` y
+  abre Claude Code con `CLAUDE_CONFIG_DIR=/otra/ruta`.
 - Los permisos del harness viven en **`.claude/settings.json`** (también versionado): lectura de
   Jira/Confluence/Notion permitida, escritura hacia afuera siempre pregunta, y cambiar estados de
   Jira (`transitionJiraIssue`) **denegado**.
@@ -103,7 +146,7 @@ Después, abre Claude Code **en la raíz de este repo**:
   tests para Python, `bash -n` para shell, `json.tool` para JSON) y el error vuelve al agente como
   feedback; y antes de escribir en Jira, Confluence o Notion se rechazan los payloads vacíos,
   demasiado cortos o con placeholders. Solo se activan en sesiones abiertas desde esta raíz, porque
-  apuntan a los scripts versionados en `hooks/`.
+  apuntan a los scripts versionados en `adapters/claude/hooks/`.
 
 > **Dónde aplican los permisos y hooks.** El método asume que trabajas desde la raíz del harness (así lo
 > pide también `demo/README.md`). `.claude/settings.json` aplica en toda sesión de Claude Code
@@ -134,7 +177,7 @@ Después, abre Claude Code **en la raíz de este repo**:
 ### 5b. Cursor
 
 ```bash
-./cursor/install-cursor.sh
+./install.sh --agent cursor
 ```
 
 Fusiona los hooks en `~/.cursor/hooks.json` y los servers MCP en `~/.cursor/mcp.json` sin pisar lo
@@ -145,7 +188,7 @@ que ya tengas (hace backup con timestamp de todo lo que toca), y sincroniza la r
 Después: reinicia Cursor, autentica el MCP de Atlassian y ábrelo en la raíz del repo.
 
 Dos diferencias respecto a Claude Code, explicadas en detalle en
-[`cursor/README.md`](./cursor/README.md):
+[`adapters/cursor/README.md`](./adapters/cursor/README.md):
 
 - El hook de MCP solo puede **denegar**, no preguntar. La confirmación interactiva la pone el
   allowlist de herramientas MCP de Cursor: **no marques las herramientas de escritura como "siempre
@@ -156,16 +199,23 @@ Dos diferencias respecto a Claude Code, explicadas en detalle en
 ### 5c. Antigravity (Gemini)
 
 ```bash
-./antigravity/install-antigravity.sh
+./install.sh --agent antigravity
 ```
 
 Fusiona hooks, servers MCP y el registro de skills en `~/.gemini/config/` sin pisar lo que ya tengas
 (backup con timestamp). Las skills son **las mismas**: `skills.json` apunta al directorio `skills/`
 de este repo, así que una edición se ve desde las tres herramientas.
 
+Deja además un archivo propio en tu HOME: `~/.gemini/qa-harness-state.json` (puedes cambiar la ruta
+con la variable `QA_HARNESS_STATE`). Ahí el harness anota qué ruta de skills registró, para poder
+retirar **esa misma** entrada cuando reinstales desde otro lugar en vez de dejar dos. Es el cuarto
+archivo que una instalación de Antigravity deja fuera del repo, junto con los tres de
+`~/.gemini/config/`.
+
 Después: reinicia Antigravity y autentica el MCP de Atlassian.
 
-Tres diferencias, explicadas en detalle en [`antigravity/README.md`](./antigravity/README.md):
+Tres diferencias, explicadas en detalle en
+[`adapters/antigravity/README.md`](./adapters/antigravity/README.md):
 
 - No hay bloque de permisos: el hook devuelve `deny` para las transiciones de Jira y `force_ask`
   para toda escritura externa. `force_ask` ignora el "siempre permitir", así que cada publicación se
@@ -174,8 +224,15 @@ Tres diferencias, explicadas en detalle en [`antigravity/README.md`](./antigravi
 - **Los nombres de las tools MCP no están documentados.** Los hooks las reconocen por patrón y
   anotan en `~/.gemini/qa-harness-unknown-tools.log` cualquier tool que huela a Atlassian o Notion y
   no haya matcheado. Este paso hay que cerrarlo a mano la primera vez: pide una lectura y un
-  comentario en Jira, mira el log, y ajusta los patrones de
-  `antigravity/hooks/validate-external-write.py` si aparece algo.
+  comentario en Jira, mira el log y, si aparece algo, agrega esa tool al catálogo en
+  **`core/gates/catalogo.py`**. Es el único lugar donde se tocan: el catálogo es compartido, así que
+  los tres runtimes heredan el cambio. No edites los hooks de `adapters/`.
+
+> **Limitación conocida de Antigravity.** Hay un límite documentado de 12.000 caracteres por archivo
+> de reglas, y las dos skills más grandes del método lo superan: pueden aparecer listadas por nombre
+> y no llegar a cargarse. La medición, lo que está y lo que no está probado, y el experimento que lo
+> confirmaría, en [`adapters/antigravity/README.md`](./adapters/antigravity/README.md). Claude Code y
+> Cursor no están afectados.
 
 ---
 

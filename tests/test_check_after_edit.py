@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 
-HOOK = Path(__file__).resolve().parents[1] / "hooks" / "check-after-edit.py"
+HOOK = Path(__file__).resolve().parents[1] / "adapters" / "claude" / "hooks" / "check-after-edit.py"
 
 
 class PostEditGateTests(unittest.TestCase):
@@ -84,7 +84,12 @@ class PostEditGateTests(unittest.TestCase):
         self.assertIsNone(self.run_hook(doc))
 
     def test_fails_closed_on_invalid_or_external_file(self) -> None:
-        self.assert_blocked(self.run_hook(self.root, raw="no es json"), "entrada inválida")
+        for raw in ("no es json", "[]", "null"):
+            with self.subTest(raw=raw):
+                self.assert_blocked(self.run_hook(self.root, raw=raw), "entrada inválida")
+        # ABSTENERSE acá se proyecta como block: este hook se engancha por
+        # matcher, así que dar por bueno un cambio sin verificar sería mentir.
+        # La contraparte silenciosa está en test_cursor_hooks y test_antigravity_hooks.
         with tempfile.NamedTemporaryFile(suffix=".py") as external:
             self.assert_blocked(self.run_hook(Path(external.name)), "fuera de la raíz")
 

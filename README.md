@@ -6,14 +6,20 @@
 
 Esto no es un pack de prompts para copiar y pegar. Es un **harness**: el andamiaje que rodea al modelo y lo transforma de "un chat que responde suelto" en un agente que analiza tickets, diseña casos, cierra ciclos y documenta — con TU forma de trabajar, conectado a TUS herramientas.
 
-Funciona con **Claude Code**, **Cursor** y **Antigravity (Gemini)**. Cada uno tiene su instalador; las
-skills, la config de tu empresa y tu perfil son los mismos archivos para los tres.
+Funciona con **Claude Code**, **Cursor** y **Antigravity (Gemini)**. Hay **un solo instalador** y
+eliges la herramienta con `--agent`; las skills, la config de tu empresa y tu perfil son los mismos
+archivos para los tres.
 
 | Si usas… | Instalas con | Detalle |
 | --- | --- | --- |
-| Claude Code | `./install.sh` | [`SETUP.md`](./SETUP.md) |
-| Cursor | `./cursor/install-cursor.sh` | [`cursor/README.md`](./cursor/README.md) |
-| Antigravity (Gemini) | `./antigravity/install-antigravity.sh` | [`antigravity/README.md`](./antigravity/README.md) |
+| Claude Code | `./install.sh --agent claude` | [`SETUP.md`](./SETUP.md) |
+| Cursor | `./install.sh --agent cursor` | [`adapters/cursor/README.md`](./adapters/cursor/README.md) |
+| Antigravity (Gemini) | `./install.sh --agent antigravity` | [`adapters/antigravity/README.md`](./adapters/antigravity/README.md) |
+| Las tres a la vez | `./install.sh --agent all` | las tres guías de arriba |
+
+> `--agent` es obligatorio y no tiene default: `./install.sh` a secas imprime la ayuda y sale con
+> error. Instalar "para Claude" a quien vino por Cursor sería un éxito falso. `./install.sh --help`
+> lista los valores válidos.
 
 ---
 
@@ -73,8 +79,8 @@ qa-harness-pro/
 ├── ONBOARDING.md             ← sumar a otro QA al harness en ~15 minutos
 ├── AGENTS.md                 ← las reglas del agente, en formato neutral
 ├── LICENSE                   ← MIT
-├── install.sh                ← instalador de Claude Code
-├── validate-config.sh        ← chequea tu config antes del primer uso (el gate del harness)
+├── install.sh                ← el único instalador: --agent <claude|cursor|antigravity|all>
+├── validate-config.sh        ← el gate del harness: chequea tu config y los 3 runtimes (--agent)
 ├── .gitignore
 ├── .mcp.json                 ← herramientas: Jira/Confluence + Notion — MCP remotos, sin secretos
 ├── .claude/
@@ -83,46 +89,55 @@ qa-harness-pro/
 │   └── rules/qa-harness.mdc  ← la rule en scope de proyecto (Cursor solo lee esta ruta)
 ├── .github/
 │   └── workflows/ci.yml      ← los unit tests de los hooks en cada push
-├── hooks/                    ← los 3 gates de Claude Code
-│   ├── block-destructive-command.py ← PreToolUse: frena comandos destructivos
-│   ├── check-after-edit.py          ← PostToolUse: valida archivos editados
-│   └── validate-external-write.py   ← PreToolUse: revisa payloads antes de publicar
-├── claude/
-│   └── CLAUDE.md             ← identidad y reglas de QA para Claude Code
-├── cursor/                   ← adaptador de Cursor
-│   ├── README.md · install-cursor.sh
-│   ├── config/               ← hooks.json · mcp.json
-│   ├── hooks/                ← _cursor.py + los 3 gates
-│   └── rules/qa-harness.mdc  ← fuente de la rule que se copia a .cursor/rules/
-├── antigravity/              ← adaptador de Antigravity (Gemini)
-│   ├── README.md · GEMINI.md · install-antigravity.sh
-│   ├── config/               ← hooks.json · mcp_config.json · skills.json
-│   └── hooks/                ← _agy.py + los 3 gates + surface-pending-check.py
+├── core/                     ← la lógica de los 3 gates, escrita una sola vez
+│   ├── gates/                ← contract.py · catalogo.py · destructivos.py · post_edicion.py · publicacion.py
+│   └── texto.py              ← normalización de texto compartida por los gates
+├── adapters/                 ← lo único que cambia entre herramientas: el puente a cada runtime
+│   ├── claude/               ← adaptador de Claude Code
+│   │   ├── CLAUDE.md         ← importa AGENTS.md + lo específico de Claude Code
+│   │   └── hooks/            ← _claude.py + los 3 gates
+│   │       ├── block-destructive-command.py ← PreToolUse: frena comandos destructivos
+│   │       ├── check-after-edit.py          ← PostToolUse: valida archivos editados
+│   │       └── validate-external-write.py   ← PreToolUse: revisa payloads antes de publicar
+│   ├── cursor/               ← adaptador de Cursor
+│   │   ├── README.md
+│   │   ├── config/           ← hooks.json · mcp.json
+│   │   ├── hooks/            ← _cursor.py + los 3 gates
+│   │   └── rules/qa-harness.mdc ← fuente de la rule que se copia a .cursor/rules/
+│   └── antigravity/          ← adaptador de Antigravity (Gemini)
+│       ├── README.md · GEMINI.md
+│       ├── config/           ← hooks.json · mcp_config.json · skills.json
+│       └── hooks/            ← _agy.py + los 3 gates + surface-pending-check.py
 ├── skills/                   ← el MÉTODO (las 5 skills + README)
 ├── profile/
 │   └── profile.example.json  ← tu identidad: nombre, rol, tono
 ├── companies/
 │   └── _template.json        ← config de tu empresa (tracker + ambientes + docs + automatización)
-├── templates/                ← test plan · bug report · análisis · cierre · matriz de riesgos
+├── templates/                ← test plan · bug report · análisis · cierre · matriz de riesgos · los 3 formatos de salida que usan las skills
 ├── assets/                   ← cheat sheet · 5 errores con IA · gate de calidad · árbol automatizar/no · antes y después
 ├── demo/                     ← un ticket de ejemplo para verlo funcionar el día 1
 ├── docs/
 │   ├── CONFIG.md             ← cada campo de configuración, explicado
 │   ├── METODO.md             ← el flujo completo y los principios detrás
-│   └── ADAPTAR-OTRO-STACK.md ← qué tocar si tu equipo no usa Jira/Confluence/Notion
+│   └── ADAPTAR-OTRO-STACK.md ← qué tocar si tu stack (o tu runtime) no es el soportado
 └── tests/                    ← smoke.sh + unit tests de los hooks de los tres runtimes
 ```
 
 > `companies/*.json` y `profile/profile.json` están en `.gitignore`: los datos de tu empresa nunca
 > entran al historial de git. Lo que se versiona es el template.
 
+> Cada adaptador tiene un shim (`_claude.py`, `_cursor.py`, `_agy.py`) que pone `core/` en el
+> `sys.path` de los hooks. La raíz del harness no se calcula contando niveles de directorio: se
+> busca subiendo hasta la marca `core/gates/contract.py`. Por eso un archivo se puede mover de
+> carpeta sin que los hooks dejen de encontrar el núcleo en silencio.
+
 ---
 
 ## 🛑 Quality gates deterministas
 
 Las reglas escritas orientan al agente. Los hooks ponen límites que no dependen de que el modelo
-recuerde obedecerlos. Son tres, y existen en los tres runtimes (`hooks/`, `cursor/hooks/`,
-`antigravity/hooks/`), con unit tests para cada uno.
+recuerde obedecerlos. Son tres, y existen en los tres runtimes (`adapters/claude/hooks/`,
+`adapters/cursor/hooks/`, `adapters/antigravity/hooks/`), con unit tests para cada uno.
 
 **1. Comandos destructivos.** Corre antes de cada ejecución de shell e inspecciona el comando
 completo. Bloquea `rm -rf`, `git reset --hard`, `git clean` forzado y `git push --force`. Un comando
@@ -146,9 +161,11 @@ para publicarse, no **si autorizas** la escritura.
 | Permisos | bloque `permissions` en `.claude/settings.json`: lectura en `allow`, escrituras externas en `ask`, `transitionJiraIssue` en `deny` | el hook de MCP solo puede `deny`; la confirmación interactiva la pone el allowlist de MCP de Cursor | no hay bloque de permisos: el hook devuelve `deny` / `force_ask` (`force_ask` ignora el "siempre permitir") |
 | Gate post-edición | devuelve el error al agente en el momento | el hook `afterFileEdit` no puede bloquear: deja una marca que se levanta como `ask` en el siguiente comando de shell | el `PostToolUse` no tiene canal de feedback: un segundo hook levanta la marca en la llamada siguiente |
 | Nombres de tools MCP | conocidos y fijos (`mcp__atlassian__*`, `mcp__notion__*`) | conocidos (`tool_name` / `tool_input`) | sin documentar: se reconocen por patrón y las no reconocidas se anotan en un log para cerrarlas a mano |
+| Tamaño de las skills | sin límite conocido | sin límite conocido | **limitación conocida:** hay un límite documentado de 12.000 caracteres por archivo de reglas, y las dos skills más grandes lo superan — pueden aparecer listadas y no llegar a cargarse. Sacar las plantillas de salida a `templates/` las achicó, pero **siguen por encima del límite**: lo que queda es método, no formato. Medición, alcance e incertidumbre en [`adapters/antigravity/README.md`](./adapters/antigravity/README.md) |
 
 El detalle de cada adaptador, con las diferencias exactas y cómo verificarlas, está en
-[`cursor/README.md`](./cursor/README.md) y [`antigravity/README.md`](./antigravity/README.md).
+[`adapters/cursor/README.md`](./adapters/cursor/README.md) y
+[`adapters/antigravity/README.md`](./adapters/antigravity/README.md).
 
 > **Verifica que el gate muerde.** Pídele al agente que publique un comentario en Jira que contenga
 > `PON-AQUI-EL-ID`: tiene que bloquearlo. Un gate desconectado no avisa que lo está; simplemente
@@ -164,7 +181,8 @@ El detalle de cada adaptador, con las diferencias exactas y cómo verificarlas, 
   - `"confluence"` — recomendado si tu equipo es Atlassian puro: viene en el mismo MCP que Jira, así que necesitas un solo conector.
   - `"notion"` — requiere además el MCP de Notion.
 - **Ambientes:** los que declares en `environments`. Uno solo, o los que uses.
-- ¿Tu equipo usa otras herramientas? [`docs/ADAPTAR-OTRO-STACK.md`](./docs/ADAPTAR-OTRO-STACK.md) te dice exactamente qué tocar y cuánto cuesta.
+- **Runtimes:** Claude Code, Cursor y Antigravity (Gemini).
+- ¿Tu equipo usa otras herramientas, o quieres sumar un cuarto runtime? [`docs/ADAPTAR-OTRO-STACK.md`](./docs/ADAPTAR-OTRO-STACK.md) te dice exactamente qué tocar y cuánto cuesta.
 - El harness **documenta, no mueve estados**: las transiciones de Jira las haces tú, a mano.
 
 ---
@@ -176,8 +194,12 @@ El detalle de cada adaptador, con las diferencias exactas y cómo verificarlas, 
    [`docs/CONFIG.md`](./docs/CONFIG.md).
 3. `cp profile/profile.example.json profile/profile.json` y pon tu nombre, tu rol y tu `activeCompany`.
 4. `./validate-config.sh` — te dice qué falta antes de que nada falle en uso real.
-5. Instala para tu herramienta (`./install.sh`, `./cursor/install-cursor.sh` o
-   `./antigravity/install-antigravity.sh`), reiníciala y ábrela **en la raíz de este repo**.
+5. Instala para tu herramienta con `./install.sh --agent <claude|cursor|antigravity|all>`,
+   reiníciala y ábrela **en la raíz de este repo**.
+
+> Si moviste el repo o lo clonaste de nuevo, vuelve a correr el instalador desde la ruta nueva:
+> **reemplaza** las entradas de la instalación anterior en vez de acumularlas. Y `validate-config.sh`
+> te avisa con un error si algo instalado quedó apuntando a otro clon o a una ruta que ya no existe.
 
 El paso a paso completo, con la autenticación de los MCP y las verificaciones, está en
 [`SETUP.md`](./SETUP.md). Si vas a sumar a otro QA al harness,

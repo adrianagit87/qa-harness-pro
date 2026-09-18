@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 
-HOOK = Path(__file__).resolve().parents[1] / "hooks" / "validate-external-write.py"
+HOOK = Path(__file__).resolve().parents[1] / "adapters" / "claude" / "hooks" / "validate-external-write.py"
 
 
 def run_hook(tool: str, tool_input: dict | None, *, raw: str | None = None) -> dict | None:
@@ -69,10 +69,15 @@ class ExternalWriteGateTests(unittest.TestCase):
                 self.assert_blocked(run_hook(tool, tool_input), "placeholder")
 
     def test_fails_closed_on_invalid_input_or_tool(self) -> None:
-        self.assert_blocked(
-            run_hook("mcp__atlassian__addCommentToJiraIssue", None, raw="no es json"),
-            "entrada inválida",
-        )
+        for raw in ("no es json", "[]", "null"):
+            with self.subTest(raw=raw):
+                self.assert_blocked(
+                    run_hook("mcp__atlassian__addCommentToJiraIssue", None, raw=raw),
+                    "entrada inválida",
+                )
+        # ABSTENERSE acá se proyecta como deny: este hook se engancha por
+        # matcher, así que una herramienta inesperada es config rota. La
+        # contraparte silenciosa está en test_cursor_hooks y test_antigravity_hooks.
         self.assert_blocked(run_hook("mcp__otro__write", {"content": "texto"}), "herramienta inesperada")
 
 

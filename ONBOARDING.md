@@ -41,8 +41,10 @@ tiene la suya. Poné la tuya:
 }
 ```
 
-Si todavía no tenés la suite clonada, dejalo vacío: `validate-config.sh` te va a dar un aviso (no
-un error) y la skill de automatización va a poder evaluar, pero no generar código integrado.
+Si todavía no tenés la suite clonada, dejá `automation` sin completar: `validate-config.sh` te va a
+dar un aviso (no un error) cuando `framework` esté vacío, y la skill de automatización va a poder
+evaluar, pero no generar código integrado. `workspacePath` no se valida: si lo dejás vacío con un
+`framework` puesto, el aviso no aparece y la skill falla recién cuando la uses.
 
 ## 3. Creá tu perfil
 
@@ -65,13 +67,20 @@ Editalo con **tu** nombre — es el que va a firmar los cierres en Jira:
 
 ## 4. Instalá para tu herramienta
 
+Hay un solo instalador y elegís la herramienta con `--agent`:
+
 | Herramienta | Comando |
 |---|---|
-| Claude Code | `./install.sh` |
-| Cursor | `./cursor/install-cursor.sh` |
-| Antigravity | `./antigravity/install-antigravity.sh` |
+| Claude Code | `./install.sh --agent claude` |
+| Cursor | `./install.sh --agent cursor` |
+| Antigravity | `./install.sh --agent antigravity` |
+| Las tres | `./install.sh --agent all` |
 
-Podés instalar más de una: comparten las mismas skills y la misma config.
+`--agent` es obligatorio: `./install.sh` a secas imprime la ayuda y sale con error, para que nadie
+crea que instaló algo que no instaló. `./install.sh --help` te lista los valores.
+
+Podés instalar más de una: corré el comando una vez por herramienta, o usá `--agent all` para las
+tres de una. Comparten las mismas skills y la misma config.
 
 ## 5. Verificá
 
@@ -80,6 +89,9 @@ Podés instalar más de una: comparten las mismas skills y la misma config.
 ```
 
 Tiene que dar 🟢. Si da error, el mensaje dice exactamente qué falta.
+
+Así, pelado, valida tu perfil y tu empresa más cada runtime que encuentre instalado. Si querés
+apuntar a uno solo, pasale `--agent claude`, `--agent cursor`, `--agent antigravity` o `--agent all`.
 
 ## 6. Probá sin tocar nada real
 
@@ -98,7 +110,9 @@ El ticket de demo está incompleto a propósito. Deberías ver un gate ⚠️ co
 PING-HARNESS
 ```
 
-Tiene que responder `PONG acme jira PROJ` — o los valores que correspondan a tu config. Nada más.
+Tiene que responder `PONG <empresa> <backend> <destino>` con los valores de tu config, y nada más.
+Con el ejemplo de esta guía sería `PONG acme jira PROJ`; si tu `docs.backend` es `confluence` o
+`notion`, el tercer valor es el destino de ese backend, no un proyecto de Jira.
 
 Si te contesta cualquier otra cosa, **el método te llegó pero las reglas no**. Es la falla más
 traicionera del harness, porque el análisis igual sale — y sale bien. Lo que se pierde en
@@ -121,10 +135,15 @@ Un gate desconectado no avisa que lo está. Simplemente deja pasar todo.
 cd ~/Documents/qa-harness-pro
 git pull ~/Downloads/qa-harness-pro.bundle main
 cp ~/Downloads/acme.json companies/acme.json     # la config también cambia
-./cursor/install-cursor.sh                        # o ./install.sh según tu herramienta
+./install.sh --agent cursor                      # o claude / antigravity / all, según lo tuyo
 ```
 
 Tu `profile/profile.json` no se toca: está en `.gitignore` y no viaja en el bundle.
+
+Si además **moviste el repo** o lo clonaste en otra carpeta, reinstalar desde la ruta nueva alcanza:
+el instalador reemplaza las entradas de la instalación anterior en vez de acumularlas. Y
+`./validate-config.sh` te marca como error cualquier cosa que haya quedado apuntando a otro clon o a
+una ruta que ya no existe, con el comando exacto para repararlo.
 
 Después **reiniciá la herramienta** y repetí los pasos 7 y 8. Si antes tenías una rule en
 `~/.cursor/rules/qa-harness.mdc`, borrala: Cursor no lee esa ruta y solo genera confusión.

@@ -25,7 +25,7 @@ Actúa como **"QA Test Closure Analyst"**. Ejecuta el flujo completo sin pregunt
 
 Esta skill **NO tiene identificadores ni nombres hardcodeados**. Al empezar, carga el perfil desde
 `profile/profile.json` y la config de la empresa activa desde `companies/<activeCompany>.json`
-(ver `CLAUDE.md`):
+(ver `AGENTS.md`):
 
 | Variable que usa la skill | Origen |
 |---|---|
@@ -126,48 +126,10 @@ humo que este harness existe para evitar.
 
 ### Paso 3 — Generar comentario estandarizado (borrador para aprobar)
 
-```
-[emoji] CIERRE DE PRUEBAS — AMBIENTE [label]
-────────────────────────────────────────
-📅 Fecha: [fecha actual]
-👤 QA: [profile.name]
-🎯 Ticket: [TICKET-ID] — [Título]
-
-📊 MÉTRICAS
-• Total planificados: [N]
-• Total ejecutados:   [n] (Pass + Fail)
-• ✅ Pass:            [n]
-• ❌ Fail:            [n]
-• ⏭️ Bloqueados:      [n]
-• ⏸️ No ejecutados:   [n]
-• 📐 Cobertura de ejecución: [X]% (ejecutados / planificados)
-• 📈 Pass Rate:              [X]% (Pass / ejecutados)
-
-🧪 CASOS VALIDADOS
-| ID | Caso | Resultado |
-| --- | --- | --- |
-| TC-001 | [título/descripción del caso] | ✅ Pass / ❌ Fail / ⏭️ Bloqueado / ⏸️ No ejecutado |
-[... una fila por caso ...]
-
-🐛 BUGS ENCONTRADOS
-[Si hay bugs:]
-• [BUG-ID o descripción] — Severidad: 🔴/🟠/🟡/🟢
-[Si no hay bugs:]
-• Sin bugs reportados en este ciclo ✅
-
-📋 OBSERVACIONES
-[Observaciones del usuario o "Sin observaciones adicionales"]
-[Si se cierra con cobertura < 100% aceptada: "⚠️ Alcance reducido aceptado por [nombre]: [motivo]"]
-
-🔄 ESTADO DEL CICLO [AMBIENTE]
-[Algún caso 🔴 crítico en Fail, Bloqueado o No ejecutado]                          → ⚠️ REQUIERE CORRECCIONES ANTES DE AVANZAR
-[Cobertura < 100% sin excepción explícita declarada]                               → ⚠️ REQUIERE CORRECCIONES ANTES DE AVANZAR
-[Sin críticos, Pass Rate ≥ 80%, sin bugs, cobertura 100% (o excepción registrada)] → ✅ APROBADO PARA SIGUIENTE AMBIENTE  ← si el ambiente tiene `final: false`
-                                                                                   → ✅ FUNCIONALIDAD APROBADA            ← si tiene `final: true` (no hay ambiente siguiente)
-[Sin críticos pendientes, pero Pass Rate < 80% o hay bugs]                         → ⚠️ REQUIERE CORRECCIONES ANTES DE AVANZAR
-────────────────────────────────────────
-📝 Documentación completa: [link a la página de doc]
-```
+**Leé `templates/07-comentario-cierre-ciclo.md`**: ahí está el formato literal del comentario —
+encabezado, métricas, tabla de casos, bugs, observaciones y las líneas de `🔄 ESTADO DEL CICLO`,
+con la variante de aprobación según el ambiente sea `final: false` o `final: true`. No improvises
+el formato ni reordenes las secciones.
 
 **Cómo se calculan las métricas (no improvises los denominadores):**
 
@@ -196,27 +158,8 @@ humo que este harness existe para evitar.
 
 **Con `docs.backend = jira`, además — un comentario de ejecución por cada CP.** Cada issue hijo
 recibe su propio registro; el comentario de cierre agregado va en el ticket de QA contenedor.
-Respeta este formato, que es el que el equipo ya usa:
-
-```markdown
-## Ejecución [CP_ID] — [YYYY-MM-DD]
-
-**Resultado: ✅ PASS / ❌ FAIL / ⏭️ Bloqueado / ⏸️ No ejecutado**
-
-### Pasos ejecutados
-1. [paso]
-
-### Validaciones
-| # | Capa | Query | Resultado |
-| --- | --- | --- | --- |
-| 1 | [capa] | `[query o endpoint]` | [resultado real observado] ✅ |
-
-### Observaciones
-* [Hallazgo, o "Sin observaciones"]
-
-### Conclusión
-[Una o dos frases.]
-```
+**Leé `templates/08-comentario-ejecucion-cp.md`** y respeta ese formato, que es el que el equipo
+ya usa.
 
 **Reglas (no romper):**
 

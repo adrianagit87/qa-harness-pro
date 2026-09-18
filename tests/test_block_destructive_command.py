@@ -10,7 +10,7 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-HOOK = REPO_ROOT / "hooks" / "block-destructive-command.py"
+HOOK = REPO_ROOT / "adapters" / "claude" / "hooks" / "block-destructive-command.py"
 
 
 def run_hook(command: str | None, *, raw: str | None = None) -> dict | None:
@@ -83,10 +83,12 @@ class DestructiveCommandGateTests(unittest.TestCase):
                 self.assert_allowed(command)
 
     def test_fails_closed_on_invalid_input(self) -> None:
-        malformed = run_hook(None, raw="no es json")
-        self.assertEqual(
-            malformed["hookSpecificOutput"]["permissionDecision"], "deny"
-        )
+        for raw in ("no es json", "[]", '"solo un string"', "null"):
+            with self.subTest(raw=raw):
+                malformed = run_hook(None, raw=raw)
+                self.assertEqual(
+                    malformed["hookSpecificOutput"]["permissionDecision"], "deny"
+                )
         self.assert_blocked("", "vacío o inválido")
 
 

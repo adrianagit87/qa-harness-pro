@@ -12,6 +12,11 @@ Cuando termines: corre `./validate-config.sh` — chequea JSON válido, campos o
 campo (tracker completo + el bloque del backend de docs que uses) y placeholders sin completar.
 El bloque del backend que NO uses puede quedar tal cual vino en el template: el validador lo ignora.
 
+Así, pelado, valida además cada runtime que encuentre instalado. Con `--agent` eliges cuál mirar:
+`./validate-config.sh --agent <claude|cursor|antigravity|all>` — los mismos valores que el
+instalador, y `--help` te los lista. La diferencia es que ahí le estás afirmando que ese runtime
+está instalado, así que no encontrarlo pasa a ser un error en vez de un silencio.
+
 No valida solo formato, valida **contenido**:
 
 - `tracker.type` debe ser `"jira"` (v1 solo soporta Jira — ver `docs/ADAPTAR-OTRO-STACK.md`).
@@ -119,8 +124,9 @@ especificación completa.
 | `caseTitlePattern`       | Patrón del título de cada CP. **Debe incluir `{CP_ID}`** — sin él, el cierre no puede identificar los casos | `"[{DEV_TICKET}][QA] {CP_ID} — {title}"` |
 
 > Este backend necesita `createJiraIssue` y `editJiraIssue` en `permissions.ask` y cubiertos por el
-> hook de publicaciones externas. Ya vienen así en `.claude/settings.json`; `validate-config.sh` lo
-> verifica. `transitionJiraIssue` sigue en `deny`: el harness documenta, no mueve estados.
+> hook de publicaciones externas. Ya vienen así en `.claude/settings.json`; `./validate-config.sh`
+> (o `./validate-config.sh --agent claude`) lo verifica. `transitionJiraIssue` sigue en `deny`: el
+> harness documenta, no mueve estados.
 
 **Si `backend` = `"confluence"`** (recomendado si tu equipo es Atlassian puro — mismo MCP que Jira):
 

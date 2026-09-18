@@ -25,7 +25,7 @@ Eres un **Orquestador QA Senior**. **Fase 1 y Fase 2 son automáticas** (no preg
 Esta skill **NO tiene identificadores ni nombres hardcodeados**. Al empezar, carga:
 
 1. El perfil del QA desde `profile/profile.json` (nombre, tono, firma y `activeCompany`).
-2. La config de la empresa activa desde `companies/<activeCompany>.json` (ver `CLAUDE.md`).
+2. La config de la empresa activa desde `companies/<activeCompany>.json` (ver `AGENTS.md`).
 
 | Variable que usa la skill | Origen en la config |
 |---|---|
@@ -156,46 +156,9 @@ análisis en su descripción, y cada caso de prueba es un **issue hijo** con su 
 
 #### Plantilla de especificación de cada CP (descripción del issue hijo)
 
-Respeta estos encabezados y su orden — es el formato que el equipo ya usa:
+Respeta estos encabezados y su orden — es el formato que el equipo ya usa.
 
-```markdown
-## Objetivo
-[Qué valida este caso, en una frase.]
-
-## Fase
-[Fase o agrupación a la que pertenece, si aplica.]
-
-## Precondiciones
-* [Estado de datos / configuración / despliegue necesario]
-
-## Datos de entrada
-* **[campo]:** `[valor]`
-
-## Endpoint
-```
-[MÉTODO] [URL]
-Content-Type: application/json
-```
-
-## Payload
-```json
-[payload completo]
-```
-
-## Resultado esperado
-* [Condición verificable 1]
-* [Condición verificable 2]
-
-## Queries de validación
-
-### 1. [Capa / servicio]
-```sql
-[SQL]
-```
-
-## Resultado obtenido
-[Se completa al ejecutar — lo llena el cierre de ciclo, no el análisis.]
-```
+**Leé `templates/06-especificacion-caso.md`**: ahí está la estructura literal a copiar.
 
 **Reglas de la plantilla (no romper):**
 
