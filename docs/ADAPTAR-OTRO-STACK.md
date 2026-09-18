@@ -1,6 +1,6 @@
 # Adaptar el harness a otro stack
 
-El alcance v1 es **Jira** como tracker, **Jira, Confluence o Notion** como documentación y
+El alcance v2 es **Jira** como tracker, **Jira, Confluence o Notion** como documentación y
 **Claude Code, Cursor o Antigravity** como runtime. Si tu equipo usa otras herramientas, esta guía
 te dice exactamente qué tocar y cuánto cuesta.
 

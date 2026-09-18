@@ -323,7 +323,7 @@ write_profile "$RV" "Ana QA"
 write_company_tracker "$RV" "github" '["PROJ"]' "https://acme.atlassian.net/browse/{KEY}"
 RC="$(run_validate "$RV" "$CV" "$TMP_ROOT/out-v8.txt")"
 assert_eq "exit code 1" "1" "$RC"
-assert_contains "el error dice que v1 solo soporta Jira" "v1 soporta solo Jira" "$TMP_ROOT/out-v8.txt"
+assert_contains "el error dice que v2 solo soporta Jira" "v2 soporta solo Jira" "$TMP_ROOT/out-v8.txt"
 assert_contains "el error apunta a ADAPTAR-OTRO-STACK" "ADAPTAR-OTRO-STACK" "$TMP_ROOT/out-v8.txt"
 
 # ────────────────────────────────────────────────────────────────────

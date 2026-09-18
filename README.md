@@ -200,7 +200,7 @@ encuentra una plantilla, pasale la ruta absoluta del repo.**
 
 ---
 
-## 🎯 Alcance (v1)
+## 🎯 Alcance (v2)
 
 - **Tracker:** Jira. `validate-config.sh` rechaza cualquier otro `tracker.type`.
 - **Documentación:** eliges el backend en tu config con `docs.backend`:

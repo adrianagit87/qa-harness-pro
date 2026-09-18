@@ -341,7 +341,7 @@ if [ -n "$ACTIVE" ] && [ -f "companies/$ACTIVE.json" ]; then
     else
       TTYPE="$(json_get "$COMPANY_FILE" "d['tracker'].get('type','')")"
       if [ "$TTYPE" != "jira" ]; then
-        fail "tracker.type = '$TTYPE' — v1 soporta solo Jira: pon \"jira\". Para adaptar el harness a otro tracker, mira docs/ADAPTAR-OTRO-STACK.md."
+        fail "tracker.type = '$TTYPE' — v2 soporta solo Jira: pon \"jira\". Para adaptar el harness a otro tracker, mira docs/ADAPTAR-OTRO-STACK.md."
       fi
 
       HOST="$(json_get_str "$COMPANY_FILE" "d['tracker'].get('host','')")"
