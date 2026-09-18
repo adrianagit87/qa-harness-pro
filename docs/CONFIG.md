@@ -19,7 +19,7 @@ está instalado, así que no encontrarlo pasa a ser un error en vez de un silenc
 
 No valida solo formato, valida **contenido**:
 
-- `tracker.type` debe ser `"jira"` (v1 solo soporta Jira — ver `docs/ADAPTAR-OTRO-STACK.md`).
+- `tracker.type` debe ser `"jira"` (v2 solo soporta Jira — ver `docs/ADAPTAR-OTRO-STACK.md`).
 - `ticketPrefixes` no puede tener entradas vacías.
 - `tracker.host` debe ser un **hostname limpio**: sin `https://`, sin `/`, sin `@`, sin puerto, sin espacios.
 - `browseUrlPattern` debe empezar con `https://`, contener `{KEY}` y su **hostname real** debe ser
@@ -44,11 +44,11 @@ No valida solo formato, valida **contenido**:
 | `name` | Nombre visible de la empresa    | `"Acme Corp"`  |
 | `key`  | Clave corta interna             | `"ACME"`       |
 
-### `tracker` — dónde viven los tickets (v1: Jira)
+### `tracker` — dónde viven los tickets (v2: Jira)
 
 | Campo               | Qué es                                                        | Cómo obtenerlo                                              |
 | ------------------- | ------------------------------------------------------------- | ---------------------------------------------------------- |
-| `type`              | Tipo de tracker. v1 solo `"jira"` (otro valor = error del validador) | Fijo                                                 |
+| `type`              | Tipo de tracker. v2 solo `"jira"` (otro valor = error del validador) | Fijo                                                 |
 | `host`              | Tu host de Jira — solo el hostname (sin `https://`, sin rutas, sin `@`) | `tuempresa.atlassian.net`                        |
 | `cloudId`           | El cloudId de tu instancia de Jira                            | `GET https://tuempresa.atlassian.net/_edge/tenant_info`    |
 | `ticketPrefixes`    | Prefijos de tus proyectos                                     | `["PROJ", "BUG"]`                                          |

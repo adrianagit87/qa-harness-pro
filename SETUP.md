@@ -62,7 +62,7 @@ datos de tu empresa no queden en el historial de git.
 ```
 
 Te dice exactamente qué falta o qué quedó en placeholder, antes de que nada falle en uso real.
-No mira solo el formato: valida que tu tracker sea coherente (v1 = Jira; `browseUrlPattern` con
+No mira solo el formato: valida que tu tracker sea coherente (v2 = Jira; `browseUrlPattern` con
 tu host real) y que los archivos versionados sigan prometiendo lo que el README promete —
 `.claude/settings.json` con el deny de `transitionJiraIssue`, las escrituras en `ask` y los hooks
 que bloquean comandos destructivos, validan ediciones y revisan publicaciones externas, y
