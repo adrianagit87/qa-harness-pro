@@ -140,10 +140,19 @@ recuerde obedecerlos. Son tres, y existen en los tres runtimes (`adapters/claude
 `adapters/cursor/hooks/`, `adapters/antigravity/hooks/`), con unit tests para cada uno.
 
 **1. Comandos destructivos.** Corre antes de cada ejecución de shell e inspecciona el comando
-completo. Bloquea `rm -rf`, `git reset --hard`, `git clean` forzado y `git push --force`. Un comando
-seguro no recibe aprobación automática: sigue el flujo normal de permisos de la herramienta. El gate
-falla cerrado si recibe una entrada vacía o inválida, y se prueba sin ejecutar ninguno de los
-comandos peligrosos: las pruebas solo le pasan strings al hook.
+completo. Son cuatro reglas, y las banderas importan — el detalle exacto vive en
+`core/gates/destructivos.py`:
+
+| Bloquea | Condición exacta |
+|---|---|
+| `rm` | recursivo **y** forzado a la vez (`-rf`, `-r -f`, `--recursive --force`…). `rm -r` solo, o `rm -f` solo, pasa. |
+| `git reset --hard` | siempre |
+| `git clean` | forzado **y** sobre directorios (hacen falta `-f` **y** `-d`), salvo que lleve `-n` / `--dry-run` |
+| `git push` forzado | `--force`, `--force-with-lease`, `--force-if-includes` o `-f` |
+
+Un comando seguro no recibe aprobación automática: sigue el flujo normal de permisos de la
+herramienta. El gate falla cerrado si recibe una entrada vacía o inválida, y se prueba sin ejecutar
+ninguno de los comandos peligrosos: las pruebas solo le pasan strings al hook.
 
 **2. Chequeo post-edición.** Corre después de cada edición de archivo y aplica el chequeo rápido que
 corresponde: sintaxis + unit tests para Python, `bash -n` para shell y `json.tool` para JSON.
@@ -166,6 +175,24 @@ para publicarse, no **si autorizas** la escritura.
 El detalle de cada adaptador, con las diferencias exactas y cómo verificarlas, está en
 [`adapters/cursor/README.md`](./adapters/cursor/README.md) y
 [`adapters/antigravity/README.md`](./adapters/antigravity/README.md).
+
+### Limitación conocida: las plantillas no viajan con las skills
+
+Las skills se registran por ruta **absoluta** (`{{HARNESS}}/skills`) justamente para que funcionen
+con la herramienta abierta en otra carpeta. Los punteros a `templates/` que hay adentro de
+`qa-analisis-ticket` y `qa-cierre-ciclo`, en cambio, son **relativos a la raíz de este repo**.
+
+O sea: trabajando fuera del harness, la skill carga y la plantilla no. El agente lee el método
+completo pero no encuentra el formato literal de salida.
+
+No lo resolvimos de forma automática a propósito. Renderizar la ruta absoluta adentro del `SKILL.md`
+al instalar volvería a esas dos skills archivos generados —hoy se editan y se versionan a mano— y en
+Antigravity las empujaría todavía más arriba del límite de 12.000 caracteres que ya superan. Volver
+a pegar las plantillas en línea es lo que acabamos de deshacer, por lo mismo.
+
+Mientras tanto los punteros dicen explícitamente que la ruta es relativa al repo del harness, y las
+skills piden la ruta antes que improvisar el formato. **Si trabajás fuera del harness y el agente no
+encuentra una plantilla, pasale la ruta absoluta del repo.**
 
 > **Verifica que el gate muerde.** Pídele al agente que publique un comentario en Jira que contenga
 > `PON-AQUI-EL-ID`: tiene que bloquearlo. Un gate desconectado no avisa que lo está; simplemente

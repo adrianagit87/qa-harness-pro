@@ -23,7 +23,7 @@ from typing import Any
 
 # Raiz del harness: se busca subiendo hasta la marca `core/gates/contract.py`, en
 # vez de contar niveles. Este bootstrap esta inline a proposito: hace falta para
-# poder importar `core` (incluido `core.raiz`), asi que no puede depender de el.
+# poder importar `core`, asi que no puede depender de nada que viva ahi adentro.
 def _raiz_bootstrap() -> Path:
     for candidato in Path(__file__).resolve().parents:
         if (candidato / "core" / "gates" / "contract.py").is_file():

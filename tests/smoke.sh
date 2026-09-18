@@ -161,6 +161,19 @@ assert_json() { # assert_json <descripción> <archivo>
   if jq empty "$2" > /dev/null 2>&1; then t_ok "$1"; else t_bad "$1 ($(basename "$2") no existe o no es JSON válido)"; fi
 }
 
+assert_file() { # assert_file <descripción> <archivo>
+  if [ -f "$2" ]; then t_ok "$1"; else t_bad "$1 ($2 no existe)"; fi
+}
+
+# El límite de Antigravity para archivos de reglas está expresado en CARACTERES, no en
+# bytes: con acentos y emojis `wc -c` sobreestima. Se cuenta con python3 en UTF-8.
+assert_max_chars() { # assert_max_chars <descripción> <archivo> <máximo>
+  local n
+  if [ ! -f "$2" ]; then t_bad "$1 ($(basename "$2") no existe)"; return; fi
+  n="$(python3 -c 'import sys; print(len(open(sys.argv[1], encoding="utf-8").read()))' "$2")"
+  if [ "$n" -lt "$3" ]; then t_ok "$1 ($n caracteres)"; else t_bad "$1 ($n caracteres, máximo $3)"; fi
+}
+
 files_under() { # files_under <dir> — archivos bajo <dir>, relativos y ordenados, en una línea
   (cd "$1" && find . -type f | LC_ALL=C sort | tr '\n' ' ')
 }
@@ -749,6 +762,8 @@ assert_eq "reinstalar no duplica servers MCP" "3" "$(jq '.mcpServers | length' "
 # ────────────────────────────────────────────────────────────────────
 say "31. ./install.sh --agent antigravity en ~/.gemini vacío: config válida y apuntando al repo"
 HA="$TMP_ROOT/home-antigravity"; mkdir -p "$HA/.gemini"
+# Marca en la rule de la copia: igual que en cursor, prueba que el instalador toca SU repo.
+echo "<!-- marca-smoke-antigravity -->" >> "$RA_DIR/adapters/antigravity/rules/qa-harness.md"
 RC="$(run_installer "$RA_DIR" antigravity "$HA" "$TMP_ROOT/out-i31.txt")"
 assert_eq "exit code 0" "0" "$RC"
 assert_json "hooks.json es JSON válido" "$HA/.gemini/config/hooks.json"
@@ -778,6 +793,15 @@ assert_eq "la entrada de skills solo tiene el campo del schema de Antigravity" "
   "$(jq -r '.entries[0] | keys | join(" ")' "$HA/.gemini/config/skills.json")"
 assert_eq "el sidecar anota el path de skills registrado" "$RA_DIR/skills" \
   "$(jq -r '.antigravity.skillsPath' "$HA/.gemini/qa-harness-state.json")"
+# La rule va al scope de PROYECTO de la copia: Antigravity lee <workspace>/.agents/rules/.
+# Sin esto, las skills quedan registradas pero las reglas del método no llegan nunca — que
+# es exactamente el agujero que estos asserts existen para que no vuelva a pasar.
+assert_contains "la rule llega al .agents/rules del repo copiado" "marca-smoke-antigravity" "$RA_DIR/.agents/rules/qa-harness.md"
+assert_file "la rule de antigravity está versionada en este repo" "$REPO_ROOT/.agents/rules/qa-harness.md"
+assert_not_contains "el repo real no se tocó" "marca-smoke-antigravity" "$REPO_ROOT/.agents/rules/qa-harness.md"
+assert_contains "la rule apunta a AGENTS.md" "AGENTS.md" "$RA_DIR/.agents/rules/qa-harness.md"
+assert_file "el AGENTS.md que la rule referencia existe" "$RA_DIR/AGENTS.md"
+assert_max_chars "la rule entra en el límite de reglas de Antigravity" "$RA_DIR/.agents/rules/qa-harness.md" 12000
 CMD="$(jq -r '."qa-harness-pro".PreToolUse[0].hooks[0].command' "$HA/.gemini/config/hooks.json")"
 echo '{"toolCall": {"name": "run_command", "args": {"CommandLine": "rm -rf /"}}}' | env HOME="$HA" bash -c "$CMD" > "$TMP_ROOT/out-i31-hook.txt" 2>&1
 assert_contains "el hook instalado bloquea un comando destructivo" '"deny"' "$TMP_ROOT/out-i31-hook.txt"

@@ -5,7 +5,7 @@ description: >
   necesidad de ticket en Jira. Para cuando QA entra ANTES de que exista la historia.
   Trigger: Cuando el usuario pega un requerimiento/documento/descripción de feature (sin ticket) y
   pide casos de prueba, o dice "genera casos de esto".
-license: Apache-2.0
+license: MIT
 metadata:
   author: qa-harness-pro
   version: "1.0"

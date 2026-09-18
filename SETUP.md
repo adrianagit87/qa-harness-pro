@@ -206,6 +206,13 @@ Fusiona hooks, servers MCP y el registro de skills en `~/.gemini/config/` sin pi
 (backup con timestamp). Las skills son **las mismas**: `skills.json` apunta al directorio `skills/`
 de este repo, así que una edición se ve desde las tres herramientas.
 
+Y sincroniza la rule en `.agents/rules/qa-harness.md` **dentro de este repo**: igual que Cursor,
+Antigravity lee las reglas del workspace, no de tu HOME. Por eso hay que abrir Antigravity en la
+raíz de este repo. **Tu `~/.gemini/GEMINI.md` no se toca**: es tuyo, y pisarlo no tiene vuelta
+atrás. Después de reiniciar, comprueba en la UI que la rule quede activa (*Always on*): la sintaxis
+para fijar el modo de activación desde el archivo no está documentada, así que el harness no la
+adivina.
+
 Deja además un archivo propio en tu HOME: `~/.gemini/qa-harness-state.json` (puedes cambiar la ruta
 con la variable `QA_HARNESS_STATE`). Ahí el harness anota qué ruta de skills registró, para poder
 retirar **esa misma** entrada cuando reinstales desde otro lugar en vez de dejar dos. Es el cuarto

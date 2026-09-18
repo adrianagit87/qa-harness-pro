@@ -88,23 +88,37 @@ tres de una. Comparten las mismas skills y la misma config.
 ./validate-config.sh
 ```
 
-Tiene que dar 🟢. Si da error, el mensaje dice exactamente qué falta.
+**Lo que tiene que quedar limpio son los ❌, no el color.** Cada error dice exactamente qué falta.
 
-Así, pelado, valida tu perfil y tu empresa más cada runtime que encuentre instalado. Si querés
-apuntar a uno solo, pasale `--agent claude`, `--agent cursor`, `--agent antigravity` o `--agent all`.
+El 🟡 no es una falla. Significa "usable, con avisos", y hay dos avisos que vas a ver aunque hayas
+hecho todo bien:
 
-## 6. Probá sin tocar nada real
+- **Si no instalaste Claude Code.** El validador revisa `claude` **siempre** —`.mcp.json` y
+  `.claude/settings.json` viajan versionados en este repo— así que instalando solo Cursor o solo
+  Antigravity te va a avisar que falta `~/.claude/CLAUDE.md` y que no hay skills enlazadas. Son
+  avisos de algo que no instalaste.
+- **Si dejaste `automation` sin completar** (paso 2). También es un aviso, no un error.
 
-```
-Analiza el ticket de demo/ticket-ejemplo.md
-```
+Pasarle tu runtime (`--agent claude`, `--agent cursor`, `--agent antigravity` o `--agent all`) saca
+del medio los avisos de los otros dos, pero no los de tu config: el 🟢 recién aparece cuando no
+queda ningún aviso pendiente.
 
-El ticket de demo está incompleto a propósito. Deberías ver un gate ⚠️ con observaciones y unos
-20 casos de prueba. No publica nada en ningún lado.
+## 6. Reiniciá la herramienta y abrila en la raíz del repo
+
+**No es opcional y no se puede saltear.** Las reglas y los hooks se leen **al arrancar**: la sesión
+que tenías abierta mientras instalabas no los tiene. Cerrá la herramienta, volvé a abrirla y abrila
+en `~/Documents/qa-harness-pro` (la raíz del repo), que es desde donde aplican los permisos, los
+hooks y las reglas.
+
+Si instalaste Antigravity, aprovechá y comprobá en la UI que la rule `qa-harness` quede activa
+(*Always on*): el harness deja el archivo en `.agents/rules/`, pero el modo de activación se fija
+desde ahí.
 
 ## 7. Verificá que las reglas te llegan
 
-**Este paso no es opcional.** Escribí en un chat nuevo, como única palabra:
+**Este paso va ANTES de la demo, y no es opcional.** Si las reglas no llegaron, la demo igual sale
+—y sale bien—, así que probarla primero no te dice nada. Escribí en un chat nuevo, como única
+palabra:
 
 ```
 PING-HARNESS
@@ -115,19 +129,27 @@ Con el ejemplo de esta guía sería `PONG acme jira PROJ`; si tu `docs.backend` 
 `notion`, el tercer valor es el destino de ese backend, no un proyecto de Jira.
 
 Si te contesta cualquier otra cosa, **el método te llegó pero las reglas no**. Es la falla más
-traicionera del harness, porque el análisis igual sale — y sale bien. Lo que se pierde en
-silencio es que te muestre el borrador antes de publicar, que no toque estados de Jira y que no
-invente datos. Revisá que hayas reiniciado la herramienta y que la abriste en la raíz del repo.
+traicionera del harness. Lo que se pierde en silencio es que te muestre el borrador antes de
+publicar, que no toque estados de Jira y que no invente datos. Revisá el paso 6: que hayas
+reiniciado de verdad y que la abriste en la raíz del repo.
 
 ## 8. Verificá que el gate muerde
 
 Pedile que publique un comentario en Jira que contenga el texto `PON-AQUI-EL-ID`. Tiene que
 **bloquearlo**.
 
-Si lo publica, el hook no está enganchado. Los hooks se leen al arrancar: reiniciá la
-herramienta.
+Si lo publica, el hook no está enganchado. Los hooks también se leen al arrancar: volvé al paso 6.
 
 Un gate desconectado no avisa que lo está. Simplemente deja pasar todo.
+
+## 9. Recién ahora, probá sin tocar nada real
+
+```
+Analiza el ticket de demo/ticket-ejemplo.md
+```
+
+El ticket de demo está incompleto a propósito. Deberías ver un gate ⚠️ con observaciones y unos
+20 casos de prueba. No publica nada en ningún lado.
 
 ## Si ya lo tenías instalado y querés actualizar
 

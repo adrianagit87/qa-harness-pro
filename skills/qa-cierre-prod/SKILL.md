@@ -6,7 +6,7 @@ description: >
   actualiza la página existente y crea una entrada de cierre PROD separada.
   Trigger: Cuando el usuario escribe "Cierre PROD TICKET-ID" (ej. "Cierre PROD PROJ-1338"), o pide
   cerrar/validar pruebas en producción de un ticket.
-license: Apache-2.0
+license: MIT
 metadata:
   author: qa-harness-pro
   version: "1.0"

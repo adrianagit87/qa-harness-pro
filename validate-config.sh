@@ -28,7 +28,7 @@
 #   - Skills enlazadas en $CLAUDE_DIR/skills: symlinks reales que resuelven a skills/ de ESTE repo.
 #
 #   cursor:       $CURSOR_DIR/hooks.json, $CURSOR_DIR/mcp.json y la rule en .cursor/rules/ del repo.
-#   antigravity:  $GEMINI_DIR/config/{hooks,mcp_config,skills}.json.
+#   antigravity:  $GEMINI_DIR/config/{hooks,mcp_config,skills}.json y la rule en .agents/rules/.
 #
 #   Y para los tres, el chequeo que importa: TODO lo que el harness dejó instalado afuera tiene
 #   que resolver ADENTRO de este repo. Config apuntando a otro clon es un gate que no protege.
@@ -56,7 +56,7 @@ QA Harness Pro — validación de configuración
 
     claude        .mcp.json, .claude/settings.json, el CLAUDE.md base y las skills de $CLAUDE_DIR
     cursor        hooks y MCP en $CURSOR_DIR, y la rule en .cursor/rules/ de este repo
-    antigravity   hooks, MCP y skills en $CONFIG_DIR
+    antigravity   hooks, MCP y skills en $CONFIG_DIR, y la rule en .agents/rules/ de este repo
     all           los tres, estén instalados o no
 
     --help        muestra esta ayuda
@@ -751,6 +751,14 @@ validar_antigravity() {
     elif [ "$vieja_reportada" = "0" ]; then
       no_instalado antigravity "$skills_json no registra $nuestro"
     fi
+  fi
+
+  # La rule va en el scope de PROYECTO: Antigravity lee <workspace>/.agents/rules/, no ~/.gemini.
+  # Registrar las skills no alcanza — sin esta rule el método llega y las reglas no.
+  if [ -f "$REPO_DIR/.agents/rules/qa-harness.md" ]; then
+    ok "antigravity: la rule está en .agents/rules/ de este repo (scope de proyecto)."
+  else
+    fail "antigravity: falta .agents/rules/qa-harness.md en este repo — sin esa rule las reglas del harness no le llegan a Antigravity. Corre ./install.sh --agent antigravity"
   fi
 }
 

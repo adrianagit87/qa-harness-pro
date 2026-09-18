@@ -7,7 +7,7 @@ description: >
   de `environments` en `companies/<empresa>.json`.
   Trigger: Cuando el usuario escribe "Cierre AMBIENTE TICKET-ID" (ej. "Cierre STG US-1234",
   "Cierre DEV PROJ-1340"), o pide cerrar/registrar el ciclo de pruebas de un ticket.
-license: Apache-2.0
+license: MIT
 metadata:
   author: qa-harness-pro
   version: "1.0"
@@ -126,7 +126,8 @@ humo que este harness existe para evitar.
 
 ### Paso 3 — Generar comentario estandarizado (borrador para aprobar)
 
-**Leé `templates/07-comentario-cierre-ciclo.md`**: ahí está el formato literal del comentario —
+**Leé `templates/07-comentario-cierre-ciclo.md`** (ruta relativa a la raíz del repo del harness,
+no al proyecto donde estés trabajando): ahí está el formato literal del comentario —
 encabezado, métricas, tabla de casos, bugs, observaciones y las líneas de `🔄 ESTADO DEL CICLO`,
 con la variante de aprobación según el ambiente sea `final: false` o `final: true`. No improvises
 el formato ni reordenes las secciones.
@@ -158,8 +159,9 @@ el formato ni reordenes las secciones.
 
 **Con `docs.backend = jira`, además — un comentario de ejecución por cada CP.** Cada issue hijo
 recibe su propio registro; el comentario de cierre agregado va en el ticket de QA contenedor.
-**Leé `templates/08-comentario-ejecucion-cp.md`** y respeta ese formato, que es el que el equipo
-ya usa.
+**Leé `templates/08-comentario-ejecucion-cp.md`** (ruta relativa a la raíz del repo del harness,
+no al proyecto donde estés trabajando) y respeta ese formato, que es el que el equipo ya usa. Si no
+lo encontrás, pedí la ruta del harness antes de improvisar el formato.
 
 **Reglas (no romper):**
 

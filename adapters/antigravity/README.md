@@ -31,6 +31,51 @@ que Claude Code usa por symlink. Editás una skill una vez y las dos herramienta
 
 Lo mismo con `companies/*.json` y `profile/profile.json`: son archivos, los lee cualquiera.
 
+## Cómo llegan las reglas
+
+Registrar las skills **no alcanza**: el agente las ve listadas, pero las reglas del método —que no
+publique sin mostrarte el borrador, que no toque estados de Jira, que no invente IDs— viven en
+`AGENTS.md`.
+
+**Lo medido, el 2026-09-18.** Con Antigravity IDE abierto en la raíz de este repo, `AGENTS.md`
+aparece en *Customizations → Rules* como regla de proyecto **por sí solo**: Antigravity lo levanta
+sin que nadie se lo pida. En el CLI (`agy 1.2.6`) las reglas también llegan — `PING-HARNESS`
+devuelve el contrato correcto y el agente arranca cargando la config, que es lo que `AGENTS.md`
+manda.
+
+**Lo que NO pudimos aislar.** En el CLI no sabemos por cuál de los dos caminos llegan: `agy -p`
+resuelve su propio workspace y no el directorio desde donde lo lanzás, así que la prueba terminó
+corriendo contra un repo que tenía los dos. Y en el IDE pasa lo contrario de lo esperable: la rule
+de `.agents/rules/` **no** aparece en el panel, ni siquiera reiniciando.
+
+**Por qué el instalador la deja igual.** Que `AGENTS.md` se levante solo no está en la
+documentación oficial; lo que **sí** está documentado es que Antigravity lee las reglas del
+workspace desde `<workspace>/.agents/rules/`. Depender solo del camino no documentado es frágil:
+si una versión futura deja de hacerlo, no te enterarías —las skills seguirían registradas y el
+análisis seguiría saliendo, sin las reglas—. Por eso el instalador copia
+`adapters/antigravity/rules/qa-harness.md` a `.agents/rules/qa-harness.md` de este repo, el mismo
+mecanismo que usa Cursor con `.cursor/rules/`. La rule es un puntero: importa `AGENTS.md` y no
+repite nada. Si los dos caminos cargan, leés lo mismo dos veces y no pasa nada.
+
+**La importación es `@/AGENTS.md`, no una ruta relativa.** Antigravity resuelve un `@` relativo
+contra la ubicación del archivo de reglas, y un `@/ruta` absoluto lo intenta primero como ruta real
+del sistema y, si no existe, lo resuelve contra la raíz del workspace. La forma absoluta sobrevive a
+que el archivo se mueva de carpeta; la relativa se rompe en silencio, que es la falla que menos se
+nota. (El caso patológico sería que existiera un `/AGENTS.md` en la raíz del sistema de archivos:
+ahí ganaría ese. No es un escenario realista.)
+
+**El modo de activación hay que confirmarlo en la UI.** Antigravity documenta cuatro modos (manual
+por `@mención`, *Always on*, decisión del modelo y glob), pero **no pudimos verificar la sintaxis
+para fijarlo desde el archivo**. Por eso la rule va en markdown pelado, sin frontmatter inventado:
+antes que adivinar un contrato y que el archivo se rechace entero, se deja el archivo válido y se te
+avisa. Después de instalar, comprobá en la UI de Antigravity que `qa-harness` quede en **Always on**.
+El `PING-HARNESS` de `SETUP.md` es el que te dice si de verdad cargó.
+
+**El instalador no toca `~/.gemini/GEMINI.md`.** Antigravity también admite reglas globales ahí, pero
+ese archivo es tuyo y puede tener años de contenido personal: pisarlo no tiene vuelta atrás. Si
+querés las reglas del harness en todas tus sesiones, agregá vos la línea `@/ruta/absoluta/AGENTS.md`
+a tu `~/.gemini/GEMINI.md`.
+
 ## Equivalencias
 
 | Componente | Claude Code | Antigravity |
@@ -41,7 +86,7 @@ Lo mismo con `companies/*.json` y `profile/profile.json`: son archivos, los lee 
 | Permisos ask/deny | bloque `permissions` | **Dentro del hook**, vía `decision` |
 | Memoria de lo instalado | no hace falta: un symlink se ve y se reemplaza solo | `~/.gemini/qa-harness-state.json` (sidecar del harness; `QA_HARNESS_STATE` lo mueve) |
 | Tamaño de las skills | sin límite conocido | límite documentado de 12.000 caracteres por archivo de reglas — ver la limitación conocida más abajo |
-| Reglas del agente | `AGENTS.md` (fuente única), importado desde `adapters/claude/CLAUDE.md` | el mismo `AGENTS.md`, importado desde `adapters/antigravity/GEMINI.md` |
+| Reglas del agente | `AGENTS.md` (fuente única), importado desde `adapters/claude/CLAUDE.md` | el mismo `AGENTS.md`, importado desde `<workspace>/.agents/rules/qa-harness.md` (scope de proyecto — Antigravity NO lee `~/.gemini/GEMINI.md` por workspace) |
 
 ## Las tres diferencias que importan
 

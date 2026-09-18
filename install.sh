@@ -3,7 +3,8 @@
 #
 #   ./install.sh --agent claude       enlaza las skills y el CLAUDE.md base en ~/.claude
 #   ./install.sh --agent cursor       fusiona hooks y MCP en ~/.cursor
-#   ./install.sh --agent antigravity  fusiona hooks, MCP y skills en ~/.gemini/config
+#   ./install.sh --agent antigravity  fusiona hooks, MCP y skills en ~/.gemini/config, y la
+#                                     rule en .agents/rules/ de este repo
 #   ./install.sh --agent all          los tres
 #
 # No pisa nada tuyo sin avisar: hace backup con timestamp de lo que fuera a sobrescribir.
@@ -30,7 +31,7 @@ QA Harness Pro — install
 
     claude        skills enlazadas + CLAUDE.md base en $CLAUDE_DIR
     cursor        hooks + MCP en $CURSOR_DIR, y la rule en .cursor/rules/ de este repo
-    antigravity   hooks + MCP + skills en $CONFIG_DIR
+    antigravity   hooks + MCP + skills en $CONFIG_DIR, y la rule en .agents/rules/ de este repo
     all           los tres, en ese orden
 
     --help        muestra esta ayuda
@@ -342,18 +343,29 @@ install_antigravity() {
   echo "   skills: $REPO_DIR/skills registrado como fuente"
   recordar_skills_path "$REPO_DIR/skills"
 
+  # 4. rule — igual que en Cursor, va en el SCOPE DE PROYECTO. Antigravity lee las reglas del
+  # workspace desde `<workspace>/.agents/rules/`, NO desde ~/.gemini. Como el repo es el
+  # workspace que se abre, la rule ya viaja versionada; esto solo re-sincroniza si alguien
+  # editó adapters/antigravity/rules/. La global `~/.gemini/GEMINI.md` NO se toca: es un
+  # archivo personal del usuario y pisarlo no tiene vuelta atrás.
+  mkdir -p "$REPO_DIR/.agents/rules"
+  cp "$REPO_DIR/adapters/antigravity/rules/qa-harness.md" "$REPO_DIR/.agents/rules/qa-harness.md"
+  echo "   rules:  qa-harness.md en .agents/rules/ del repo (scope de proyecto)"
+
   echo
   echo "✅ Instalado. Las skills son las MISMAS que usa Claude Code — un solo lugar que mantener."
   echo
   echo "🔎 Pasos que faltan (ver adapters/antigravity/README.md):"
   echo "   ▢ 1. Reinicia Antigravity para que tome la config"
-  echo "   ▢ 2. Autentica el MCP de Atlassian (OAuth en el navegador)"
-  echo "   ▢ 3. IMPORTANTE — descubre los nombres reales de las tools:"
+  echo "   ▢ 2. Comprueba en la UI que la rule .agents/rules/qa-harness.md quede activa"
+  echo "        (modo 'Always on'). El harness no puede fijarlo desde el archivo."
+  echo "   ▢ 3. Autentica el MCP de Atlassian (OAuth en el navegador)"
+  echo "   ▢ 4. IMPORTANTE — descubre los nombres reales de las tools:"
   echo "        corre una acción que toque Jira y después mira"
   echo "        ~/.gemini/qa-harness-unknown-tools.log"
   echo "        Si aparece algo ahí, agrega esa tool al catálogo en core/gates/catalogo.py"
   echo "        — es el único lugar donde se tocan: los tres runtimes lo comparten."
-  echo "   ▢ 4. Verifica el gate: pídele que publique algo con un placeholder"
+  echo "   ▢ 5. Verifica el gate: pídele que publique algo con un placeholder"
   echo "        sin resolver — debe bloquearlo"
 }
 

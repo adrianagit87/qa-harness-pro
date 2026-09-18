@@ -5,7 +5,7 @@ description: >
   suite de automatización de la empresa activa, respetando su framework y convenciones.
   Trigger: Cuando el usuario confirma "Sí" a evaluar automatización tras un análisis QA, o pide
   evaluar/automatizar un caso.
-license: Apache-2.0
+license: MIT
 metadata:
   author: qa-harness-pro
   version: "1.0"

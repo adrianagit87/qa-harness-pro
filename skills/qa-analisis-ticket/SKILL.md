@@ -6,7 +6,7 @@ description: >
   un issue hijo por caso), o una página de Confluence/Notion. Es el corazón del workflow QA.
   Trigger: Cuando el usuario pega una URL de Jira de la empresa activa, un TICKET-ID a analizar,
   o una User Story para revisar/generar casos de prueba.
-license: Apache-2.0
+license: MIT
 metadata:
   author: qa-harness-pro
   version: "1.0"
@@ -158,7 +158,9 @@ análisis en su descripción, y cada caso de prueba es un **issue hijo** con su 
 
 Respeta estos encabezados y su orden — es el formato que el equipo ya usa.
 
-**Leé `templates/06-especificacion-caso.md`**: ahí está la estructura literal a copiar.
+**Leé `templates/06-especificacion-caso.md`** (ruta relativa a la raíz del repo del harness, no
+al proyecto donde estés trabajando): ahí está la estructura literal a copiar. Si no lo encontrás,
+pedí la ruta del harness antes de improvisar el formato.
 
 **Reglas de la plantilla (no romper):**
 
