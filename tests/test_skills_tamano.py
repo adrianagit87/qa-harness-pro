@@ -39,7 +39,7 @@ class SkillsDentroDelLimite(unittest.TestCase):
                 self.assertLess(
                     caracteres,
                     LIMITE_CARACTERES,
-                    f"{skill.relative_to(RAIZ)} tiene {caracteres} caracteres: movele detalle a "
+                    f"{skill.relative_to(RAIZ)} tiene {caracteres} caracteres: muévele detalle a "
                     f"references/ en vez de recortar método",
                 )
 

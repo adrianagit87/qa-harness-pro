@@ -43,7 +43,7 @@ Si la config no está disponible o le falta un valor → **avisa antes de operar
 
 1. Toma el ambiente del trigger del usuario (`Cierre STG US-1234` → `STG`). Si no lo nombró, usa `environments.default`.
 2. Busca ese `key` en `environments.list`. **Si no existe → DETENTE** y muestra los `key` válidos. No inventes un ambiente ni caigas al default en silencio: cerrar un ciclo declarando un ambiente equivocado es exactamente el humo que este harness existe para evitar.
-3. **Antes de ejecutar este paso, leé `references/resolucion-ambiente.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): qué campo del ambiente se usa en cada parte del flujo, y el caso de un solo ambiente.
+3. **Antes de ejecutar este paso, lee `references/resolucion-ambiente.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): qué campo del ambiente se usa en cada parte del flujo, y el caso de un solo ambiente.
 
 ## Reglas críticas (NO romper)
 
@@ -59,7 +59,7 @@ Si la config no está disponible o le falta un valor → **avisa antes de operar
 
 ### Paso 1 — Leer casos desde la doc
 
-**Antes de ejecutar este paso, leé `references/lectura-casos.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está cómo leer los casos en cada backend.
+**Antes de ejecutar este paso, lee `references/lectura-casos.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está cómo leer los casos en cada backend.
 
 **Criterio de búsqueda (no romper) — "cero resultados" NO es lo mismo que "búsqueda fallida":**
 
@@ -106,13 +106,13 @@ humo que este harness existe para evitar.
 
 ### Paso 3 — Generar comentario estandarizado (borrador para aprobar)
 
-**Leé `templates/07-comentario-cierre-ciclo.md`** (ruta relativa a la raíz del repo del harness,
+**Lee `templates/07-comentario-cierre-ciclo.md`** (ruta relativa a la raíz del repo del harness,
 no al proyecto donde estés trabajando): ahí está el formato literal del comentario —
 encabezado, métricas, tabla de casos, bugs, observaciones y las líneas de `🔄 ESTADO DEL CICLO`,
 con la variante de aprobación según el ambiente sea `final: false` o `final: true`. No improvises
 el formato ni reordenes las secciones.
 
-**Antes de ejecutar este paso, leé `references/metricas-aprobacion.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el cálculo de las métricas y el criterio de aprobación, con la única excepción de alcance.
+**Antes de ejecutar este paso, lee `references/metricas-aprobacion.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el cálculo de las métricas y el criterio de aprobación, con la única excepción de alcance.
 
 ### Paso 4 — Publicar (tras aprobación)
 
@@ -120,24 +120,24 @@ el formato ni reordenes las secciones.
 
 **Con `docs.backend = jira`, además — un comentario de ejecución por cada CP.** Cada issue hijo
 recibe su propio registro; el comentario de cierre agregado va en el ticket de QA contenedor.
-**Leé `templates/08-comentario-ejecucion-cp.md`** (ruta relativa a la raíz del repo del harness,
+**Lee `templates/08-comentario-ejecucion-cp.md`** (ruta relativa a la raíz del repo del harness,
 no al proyecto donde estés trabajando) y respeta ese formato, que es el que el equipo ya usa. Si no
-lo encontrás, pedí la ruta del harness antes de improvisar el formato.
+lo encuentras, pide la ruta del harness antes de improvisar el formato.
 
 **Reglas (no romper):**
 
-- **Solo escribís lo que el usuario confirmó.** La columna `Resultado` lleva el valor real
+- **Solo escribes lo que el usuario confirmó.** La columna `Resultado` lleva el valor real
   observado; si el usuario no te lo dio, va el resultado que sí reportó y nada más. **Jamás
   inventes un `id`, un valor de BD o una evidencia.** Un comentario de ejecución con datos
   fabricados es peor que no tener comentario: alguien lo va a leer como evidencia real.
 - A los CP marcados `⏸️ No ejecutado` **no les publiques comentario de ejecución** — no se ejecutaron.
 - **Nunca** uses `transitionJiraIssue` para pasar los CP a Finalizada. Está en `deny`; lo hace el usuario.
 - El comentario agregado del ciclo va sobre el **contenedor**, no sobre cada CP.
-2. **Doc — registra el cierre del ciclo** (y, si el ambiente tiene `separateClosurePage: true`, la página de cierre separada). **Antes de ejecutar este paso, leé `references/publicacion-doc.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el procedimiento por backend, el renombrado del título y la convención de naming de la página.
+2. **Doc — registra el cierre del ciclo** (y, si el ambiente tiene `separateClosurePage: true`, la página de cierre separada). **Antes de ejecutar este paso, lee `references/publicacion-doc.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el procedimiento por backend, el renombrado del título y la convención de naming de la página.
 
 ### Paso 5 — Respuesta al usuario (corta)
 
-**Antes de ejecutar este paso, leé `references/respuesta-final.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el formato literal.
+**Antes de ejecutar este paso, lee `references/respuesta-final.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el formato literal.
 
 ### Paso 6 — Baseline (solo si aplica)
 

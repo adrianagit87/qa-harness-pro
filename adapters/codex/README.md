@@ -27,7 +27,7 @@ validador la respetan también. `CODEX_SKILLS_DIR` (default `~/.agents/skills`) 
 probarlo en un sandbox. Si `CODEX_HOME` no existe, no se instala nada: Codex nunca corrió ahí.
 
 Reinstalar es idempotente: los hooks del harness se reconocen por el sufijo
-`adapters/codex/hooks/<script>` del command (no por la ruta absoluta, que cambia si mudás el repo),
+`adapters/codex/hooks/<script>` del command (no por la ruta absoluta, que cambia si mudas el repo),
 y los bloques por sus marcas. Si nada cambió, `config.toml` y `AGENTS.md` ni se reescriben.
 
 ### Por qué bloques gestionados y no archivos propios
@@ -35,16 +35,16 @@ y los bloques por sus marcas. Si nada cambió, `config.toml` y `AGENTS.md` ni se
 - **`config.toml`** es tuyo: tus servers, tus permisos, tus aprobaciones. Reescribirlo con un parser
   de TOML perdería tus comentarios y tu orden. El bloque se agrega o se reemplaza entre marcas, el
   resultado se vuelve a parsear **antes** de escribirlo, y si tu archivo ya no parseaba, no se toca.
-- **Si ya tenés tu propio `[mcp_servers.atlassian]`**, el bloque NO se agrega: una tabla duplicada es
+- **Si ya tienes tu propio `[mcp_servers.atlassian]`**, el bloque NO se agrega: una tabla duplicada es
   TOML inválido y Codex no arranca. La instalación termina con exit 1 y te dice qué sumar a mano
   dentro de tu server (lo que trae [`config/mcp.toml`](./config/mcp.toml)). `validate-config.sh`
   valida la config **efectiva**, así que hecho a mano también cuenta.
 - **`AGENTS.md`**: Codex no tiene imports como el `@ruta` de Claude Code, y tu `~/.codex/AGENTS.md`
   es personal (en macOS, `agents.md` y `AGENTS.md` son **el mismo archivo**: el bloque se agrega al
-  que ya tenés, con el nombre que ya tiene). No se pega el método entero —150 líneas que quedarían
+  que ya tienes, con el nombre que ya tiene). No se pega el método entero —150 líneas que quedarían
   viejas y duplicadas—: el bloque es corto y apunta al `AGENTS.md` del repo. En la raíz del repo
   Codex ya lo lee solo como instrucciones del proyecto (verificado); el bloque es la red para cuando
-  trabajás desde otra carpeta.
+  trabajas desde otra carpeta.
 - **Sin sidecar de estado** (a diferencia de Antigravity): todo lo que el harness deja afuera se
   reconoce solo —hooks por sufijo, bloques por marcas, skills por symlink— así que reinstalar desde
   otra ruta reemplaza sin tener que recordar nada.
@@ -55,14 +55,14 @@ Codex **no corre un hook que no aprobaste**, y no avisa: el gate simplemente no 
 instalar (y después de cada reinstalación desde otra ruta, porque cambia el command y con él el
 hash):
 
-1. Abrí Codex (`codex`).
-2. Corré `/hooks`.
-3. Revisá los cinco hooks del harness y confiá en ellos.
+1. Abre Codex (`codex`).
+2. Corre `/hooks`.
+3. Revisa los cinco hooks del harness y confía en ellos.
 
 **Si actualizaste el harness** (por ejemplo, a la versión que agrega el gate de la terminal),
-reinstalá con `./install.sh --agent codex` y volvé a `/hooks`: te va a mostrar **solo los hooks
+reinstala con `./install.sh --agent codex` y vuelve a `/hooks`: te va a mostrar **solo los hooks
 nuevos** para aprobar (`snapshot-before-shell.py` y `check-after-shell.py`). Los que ya aprobaste
-no se mueven de lugar ni cambian de command, así que su aprobación sigue valiendo. Aprobá **los dos**:
+no se mueven de lugar ni cambian de command, así que su aprobación sigue valiendo. Aprueba **los dos**:
 son un par, y con uno solo el gate de la terminal se abstiene en silencio (`validate-config.sh` lo avisa).
 
 Codex guarda la aprobación en `config.toml` como `[hooks.state."<hooks.json>:<evento>:<grupo>:<hook>"]`
@@ -179,7 +179,7 @@ por posición: un grupo nuevo al final pide aprobar solo ese hook y no toca los 
 - **Solo Atlassian lleva segunda capa.** El server de Notion no se agrega al bloque: muchos ya tienen
   su propio `[mcp_servers.notion]` y duplicarlo rompería el TOML. El hook igual revisa el contenido de
   `notion-create-pages` / `notion-update-page` si tu server se llama `notion`; la aprobación por tool
-  la configurás vos.
+  la configuras tú.
 - **Las escrituras de Atlassian que no están en el catálogo** (`createConfluenceFooterComment`,
   `addWorklogToJiraIssue`, `createIssueLink`…) no llevan `approval_mode = "prompt"`: siguen la
   política de aprobación general de tu Codex. Se agregan en `core/gates/catalogo.py` y en
@@ -201,26 +201,26 @@ codex mcp login atlassian               # OAuth en el navegador
 cd <raíz-del-repo> && codex
 ```
 
-En Codex: `/hooks` → confiá en los cinco del harness. Después `/mcp` → el server `atlassian` tiene que
+En Codex: `/hooks` → confía en los cinco del harness. Después `/mcp` → el server `atlassian` tiene que
 figurar conectado.
 
-**1. Las reglas llegan.** Escribí `PING-HARNESS`.
+**1. Las reglas llegan.** Escribe `PING-HARNESS`.
 Esperado: `PONG <empresa> <backend> <destino>` y nada más.
 
-**2. Comando destructivo.** Pedile:
-`Corré exactamente este comando y nada más: rm -rf /tmp/qa-harness-prueba-que-no-existe`
+**2. Comando destructivo.** Pídele:
+`Corre exactamente este comando y nada más: rm -rf /tmp/qa-harness-prueba-que-no-existe`
 Esperado: el comando **no** corre y Codex muestra `Quality gate: rm recursivo y forzado bloqueado.`
 (Si corriera, borra una carpeta que no existe: inofensivo, pero el gate está desconectado.)
 
-**3. Post-edición.** Pedile:
-`Creá el archivo zz-prueba-codex.json en la raíz del repo con este contenido exacto: {"a": }`
+**3. Post-edición.** Pídele:
+`Crea el archivo zz-prueba-codex.json en la raíz del repo con este contenido exacto: {"a": }`
 Esperado: el archivo se crea (el gate no lo impide, ver #27833) y el modelo recibe
 `Quality gate post-edit: el cambio YA QUEDÓ ESCRITO en disco; … falló JSON después de editar
 zz-prueba-codex.json…`; lo dice (sin contar que "se rechazó") y propone arreglarlo. Después:
 `rm zz-prueba-codex.json`.
 
-**3b. Post-edición por la terminal.** Pedile:
-`Usando la terminal y no apply_patch, corré exactamente: printf '%s' '{"a": }' > zz-prueba-codex.json`
+**3b. Post-edición por la terminal.** Pídele:
+`Usando la terminal y no apply_patch, corre exactamente: printf '%s' '{"a": }' > zz-prueba-codex.json`
 Esperado: el comando corre y el modelo recibe el mismo `Quality gate post-edit: el cambio YA QUEDÓ
 ESCRITO en disco; … falló JSON después de editar zz-prueba-codex.json…`. Si no dice nada, el par
 `snapshot-before-shell.py` / `check-after-shell.py` no está aprobado en `/hooks` (hacen falta los dos).
@@ -228,25 +228,25 @@ Después: `rm zz-prueba-codex.json`.
 
 **4. Publicación con placeholder.** Dentro del repo esto **no** prueba el hook: el modelo se niega
 solo a llamar a Jira, porque el `AGENTS.md` del harness le exige perfil y borrador primero. Es la regla
-funcionando, no el gate. Para ejercitar el hook, corré Codex desde una carpeta vacía, sin sesión que
+funcionando, no el gate. Para ejercitar el hook, corre Codex desde una carpeta vacía, sin sesión que
 guardar y en solo lectura:
 
 ```bash
 mkdir -p /tmp/qa-harness-vacia
 codex exec --skip-git-repo-check --ephemeral -s read-only -C /tmp/qa-harness-vacia \
-  "Cargá la tool addCommentToJiraIssue del server atlassian con tu mecanismo de búsqueda de tools \
-   (las tools MCP están diferidas) y después llamala con issueIdOrKey ZZZ-0 y el texto exacto \
+  "Carga la tool addCommentToJiraIssue del server atlassian con tu mecanismo de búsqueda de tools \
+   (las tools MCP están diferidas) y después llámala con issueIdOrKey ZZZ-0 y el texto exacto \
    'Prueba del harness: PON-AQUI-EL-ID'."
 ```
 
 Las tools MCP llegan diferidas: si el prompt no le pide cargarla primero, el modelo dice que no la
 tiene y el hook nunca se ejercita. Esperado (verificado con 0.157.1):
 `Tool call blocked by PreToolUse hook: Quality gate de publicación: quedó un placeholder sin resolver ('PON-AQUI').. Tool: mcp__atlassian__addCommentToJiraIssue`.
-Si en cambio aparece el diálogo de aprobación de Codex, el hook de MCP **no** mordió: **rechazá** y
-anotalo. La segunda capa funcionó, la primera no. (Aunque aprobaras por error, `ZZZ-0` no existe.)
+Si en cambio aparece el diálogo de aprobación de Codex, el hook de MCP **no** mordió: **rechaza** y
+anótalo. La segunda capa funcionó, la primera no. (Aunque aprobaras por error, `ZZZ-0` no existe.)
 
-**5. Transición — segunda capa.** Pedile:
-`¿Tenés disponible la tool transitionJiraIssue del server atlassian? No la llames: solo decime sí o no.`
+**5. Transición — segunda capa.** Pídele:
+`¿Tienes disponible la tool transitionJiraIssue del server atlassian? No la llames: solo dime sí o no.`
 Esperado: no. `disabled_tools` la sacó de la lista.
 
 **6. Transición — primera capa (el hook).** Para probar el hook hay que levantar la segunda capa **solo
@@ -257,9 +257,9 @@ codex -c 'mcp_servers.atlassian.disabled_tools=[]' \
       -c 'mcp_servers.atlassian.tools.transitionJiraIssue.approval_mode="prompt"'
 ```
 
-Pedile: `Pasá el ticket ZZZ-0 a "Done".`
+Pídele: `Pasa el ticket ZZZ-0 a "Done".`
 Esperado: deny del hook con `cambiar el estado de un ticket de Jira está prohibido en este harness`.
-Si aparece el diálogo de aprobación, el hook no mordió: **rechazá**. Salí de esa sesión: los `-c` no
+Si aparece el diálogo de aprobación, el hook no mordió: **rechaza**. Sal de esa sesión: los `-c` no
 se guardan en tu `config.toml`.
 
 Un gate desconectado no avisa que lo está. Simplemente deja pasar todo.
@@ -275,4 +275,4 @@ apuntando a la ruta vieja. `./validate-config.sh --agent codex` lo caza (ruta qu
 ```
 
 Reinstalar desde la ruta nueva **reemplaza** los hooks y el bloque en vez de sumar otros. Como el
-command cambió, **volvé a pasar por `/hooks`**.
+command cambió, **vuelve a pasar por `/hooks`**.

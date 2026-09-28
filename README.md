@@ -213,8 +213,8 @@ Antigravity les comería el margen que tienen bajo el límite de 12.000 caracter
 plantillas en línea es lo que acabamos de deshacer, por lo mismo.
 
 Mientras tanto los punteros dicen explícitamente que la ruta es relativa al repo del harness, y las
-skills piden la ruta antes que improvisar el formato. **Si trabajás fuera del harness y el agente no
-encuentra una plantilla, pasale la ruta absoluta del repo.**
+skills piden la ruta antes que improvisar el formato. **Si trabajas fuera del harness y el agente no
+encuentra una plantilla, pásale la ruta absoluta del repo.**
 
 > **Verifica que el gate muerde.** Pídele al agente que publique un comentario en Jira que contenga
 > `PON-AQUI-EL-ID`: tiene que bloquearlo. Un gate desconectado no avisa que lo está; simplemente

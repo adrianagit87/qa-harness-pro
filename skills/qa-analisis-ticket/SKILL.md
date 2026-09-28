@@ -47,13 +47,13 @@ Si la config no está disponible o le falta un valor → **avisa antes de operar
 4. **Documentación escalonada** (ver tabla abajo) — no todo ticket lleva página de documentación.
 5. **Conteo de casos (TC) exacto** — nunca inferido ni genérico. Si dudas, confirma con el usuario.
    Los IDs son correlativos, sin huecos ni sufijos (nada de `TC-017b`), y **se arman con
-   `docs.jira.caseIdPattern` desde el principio**: el ID que ponés en la tabla es el mismo que va
+   `docs.jira.caseIdPattern` desde el principio**: el ID que pones en la tabla es el mismo que va
    al título del issue hijo. Si el patrón es `TC-{DEV_NUM}-{NN}` y el ticket es US-994, la tabla
    dice `TC-994-01`, no `TC-001`. **Nunca numeres la tabla con un formato y publiques con otro**:
    el cierre de ciclo correlaciona casos e issues por ID y no matchea nada.
    Ese mismo ID es el `{CP_ID}` de `caseTitlePattern` al publicar, para que el cierre pueda
    correlacionar los casos con sus issues. **Nunca emitas filas placeholder, filas vacías ni notas
-   de autocorrección dentro de la tabla**: si te equivocaste numerando, reescribí la tabla entera
+   de autocorrección dentro de la tabla**: si te equivocaste numerando, reescribe la tabla entera
    bien y no expliques el error.
 6. Si algo es ambiguo → documenta la ambigüedad en "Preguntas para PO/Dev", no asumas.
 7. Avanza con la info disponible y supuestos documentados — es preferible avanzar a sobre-preguntar.
@@ -120,7 +120,7 @@ Una página por ticket — **nunca duplicar**. DEV/PROD se agregan como seccione
 
 ### Si `docs.backend` = `jira`
 
-**Antes de ejecutar este paso, leé `references/publicacion-jira.md`** (en la carpeta de esta skill: `skills/qa-analisis-ticket/references/`, ruta relativa a la raíz del repo del harness): ahí está cómo buscar el contenedor (por vínculo primero), reusarlo o crearlo, y la plantilla de cada CP.
+**Antes de ejecutar este paso, lee `references/publicacion-jira.md`** (en la carpeta de esta skill: `skills/qa-analisis-ticket/references/`, ruta relativa a la raíz del repo del harness): ahí está cómo buscar el contenedor (por vínculo primero), reusarlo o crearlo, y la plantilla de cada CP.
 
 > **Nunca uses `transitionJiraIssue`.** Está en `deny`. Los CP los pasa a Finalizada el usuario, a
 > mano. El harness documenta; no mueve estados.
@@ -128,14 +128,14 @@ Una página por ticket — **nunca duplicar**. DEV/PROD se agregan como seccione
 **Reglas de la plantilla (no romper):**
 
 - Las secciones `Endpoint`, `Payload` y `Queries de validación` van **solo si el caso es de
-  backend/API** y tenés el dato real. **Nunca inventes una URL, un payload o una tabla.** Si no lo
-  sabés, deja el caso con `Objetivo / Precondiciones / Datos de entrada / Resultado esperado` y
+  backend/API** y tienes el dato real. **Nunca inventes una URL, un payload o una tabla.** Si no lo
+  sabes, deja el caso con `Objetivo / Precondiciones / Datos de entrada / Resultado esperado` y
   anota en `Precondiciones` qué falta averiguar. Un payload inventado que alguien copia y ejecuta
   es peor que una sección ausente.
 
 ### Si `docs.backend` = `confluence` o `notion`
 
-**Antes de ejecutar este paso, leé `references/publicacion-confluence-notion.md`** (en la carpeta de esta skill: `skills/qa-analisis-ticket/references/`, ruta relativa a la raíz del repo del harness): ahí está cómo buscar la página existente, crearla y actualizarla en cada backend.
+**Antes de ejecutar este paso, lee `references/publicacion-confluence-notion.md`** (en la carpeta de esta skill: `skills/qa-analisis-ticket/references/`, ruta relativa a la raíz del repo del harness): ahí está cómo buscar la página existente, crearla y actualizarla en cada backend.
 
 ### En todos los backends
 
@@ -148,7 +148,7 @@ Una página por ticket — **nunca duplicar**. DEV/PROD se agregan como seccione
 
 ## Respuesta final al usuario (corta)
 
-**Antes de ejecutar este paso, leé `references/respuesta-final.md`** (en la carpeta de esta skill: `skills/qa-analisis-ticket/references/`, ruta relativa a la raíz del repo del harness): ahí está el formato literal.
+**Antes de ejecutar este paso, lee `references/respuesta-final.md`** (en la carpeta de esta skill: `skills/qa-analisis-ticket/references/`, ruta relativa a la raíz del repo del harness): ahí está el formato literal.
 
 Si el usuario responde "Sí" a Fase 3 → carga la skill [[qa-automatizacion]].
 

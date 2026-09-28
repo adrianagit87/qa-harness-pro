@@ -654,16 +654,16 @@ validar_copias_antigravity() { # validar_copias_antigravity <carpeta>
     case "$est" in
       ok) al_dia=$((al_dia+1)) ;;
       falta) ;;  # la cuenta el resumen de abajo
-      desactualizada) warn "skill '$name': copia desactualizada: corré ./install.sh --agent antigravity (el contenido de $carpeta/$name ya no es el de skills/$name de este repo)." ;;
-      otro-clon) warn "skill '$name': la copia de $carpeta/$name vino de OTRO clon ('$detalle'), no de este repo. Corré ./install.sh --agent antigravity" ;;
-      symlink) warn "skill '$name': $carpeta/$name es un symlink (→ $detalle). Antigravity lo resuelve y su política de workspace le bloquea leer fuera del workspace. Corré ./install.sh --agent antigravity (si es de una instalación anterior del harness lo reemplaza por una copia; si es ajeno, no lo toca: quítalo a mano)." ;;
-      ajena) warn "skill '$name': $carpeta/$name existe y no es una copia del harness — Antigravity lee ESO, no la skill de este repo (¿copia vieja del método?). El instalador no lo toca: muévelo fuera de $carpeta y corré ./install.sh --agent antigravity" ;;
+      desactualizada) warn "skill '$name': copia desactualizada: corre ./install.sh --agent antigravity (el contenido de $carpeta/$name ya no es el de skills/$name de este repo)." ;;
+      otro-clon) warn "skill '$name': la copia de $carpeta/$name vino de OTRO clon ('$detalle'), no de este repo. Corre ./install.sh --agent antigravity" ;;
+      symlink) warn "skill '$name': $carpeta/$name es un symlink (→ $detalle). Antigravity lo resuelve y su política de workspace le bloquea leer fuera del workspace. Corre ./install.sh --agent antigravity (si es de una instalación anterior del harness lo reemplaza por una copia; si es ajeno, no lo toca: quítalo a mano)." ;;
+      ajena) warn "skill '$name': $carpeta/$name existe y no es una copia del harness — Antigravity lee ESO, no la skill de este repo (¿copia vieja del método?). El instalador no lo toca: muévelo fuera de $carpeta y corre ./install.sh --agent antigravity" ;;
     esac
   done < <(python3 "$REPO_DIR/adapters/antigravity/copias_skills.py" estado "$REPO_DIR/skills" "$carpeta" 2>/dev/null)
   if [ "$total" -gt 0 ] && [ "$al_dia" -eq "$total" ]; then
     ok "antigravity: las $total skills están copiadas en $carpeta y al día con este repo."
   else
-    warn "antigravity: solo $al_dia de $total skills copiadas y al día en $carpeta — corré ./install.sh --agent antigravity"
+    warn "antigravity: solo $al_dia de $total skills copiadas y al día en $carpeta — corre ./install.sh --agent antigravity"
   fi
 }
 

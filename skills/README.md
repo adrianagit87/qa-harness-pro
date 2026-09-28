@@ -17,7 +17,7 @@ Las 6 skills:
 Cada skill es una carpeta con su `SKILL.md`: el punto de entrada, con la config, los pasos en orden
 y las reglas que tienen que estar siempre en contexto. Cuando el detalle de un paso no entra ahí, va
 **textual** a `references/<tema>.md` dentro de la misma carpeta, y el paso lo pide con un puntero
-imperativo ("Antes de ejecutar este paso, leé `references/<tema>.md`"). Hoy lo usan
+imperativo ("Antes de ejecutar este paso, lee `references/<tema>.md`"). Hoy lo usan
 `qa-analisis-ticket` y `qa-cierre-ciclo`. El motivo es el límite de 12.000 caracteres de Antigravity
 ([`adapters/antigravity/README.md`](../adapters/antigravity/README.md));
 `tests/test_skills_tamano.py` falla si un `SKILL.md` lo pasa o si apunta a una referencia que no
