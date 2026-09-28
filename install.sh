@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
-# QA Harness Pro — setup reproducible. Un solo instalador para los tres agentes:
+# QA Harness Pro — setup reproducible. Un solo instalador para los cuatro agentes:
 #
 #   ./install.sh --agent claude       enlaza las skills y el CLAUDE.md base en ~/.claude
 #   ./install.sh --agent cursor       fusiona hooks y MCP en ~/.cursor
-#   ./install.sh --agent antigravity  fusiona hooks, MCP y skills en ~/.gemini/config, y la
-#                                     rule en .agents/rules/ de este repo
-#   ./install.sh --agent all          los tres
+#   ./install.sh --agent antigravity  fusiona hooks y MCP en ~/.gemini/config, copia las skills
+#                                     en ~/.gemini/config/skills y deja la rule en .agents/rules/
+#                                     de este repo
+#   ./install.sh --agent codex        fusiona hooks en $CODEX_HOME/hooks.json, agrega bloques
+#                                     gestionados a config.toml y AGENTS.md, y enlaza las skills
+#                                     en ~/.agents/skills
+#   ./install.sh --agent all          los cuatro
 #
-# No pisa nada tuyo sin avisar: hace backup con timestamp de lo que fuera a sobrescribir.
+# No pisa nada tuyo sin avisar: hace backup con timestamp de lo que fuera a sobrescribir. Si ya
+# tienes skills PROPIAS con el nombre de las del harness (en ~/.claude/skills o ~/.agents/skills),
+# se frena sin tocar nada; solo con --reemplazar-skills las respalda y las reemplaza.
 set -euo pipefail
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,29 +21,41 @@ CLAUDE_DIR="${CLAUDE_DIR:-$HOME/.claude}"
 CURSOR_DIR="${CURSOR_DIR:-$HOME/.cursor}"
 GEMINI_DIR="${GEMINI_DIR:-$HOME/.gemini}"
 CONFIG_DIR="$GEMINI_DIR/config"
+# CODEX_HOME es la variable que respeta el propio Codex: si la tienes fijada, el harness se
+# instala donde Codex de verdad lee. Las skills de usuario de Codex viven FUERA de CODEX_HOME,
+# en ~/.agents/skills; CODEX_SKILLS_DIR existe para poder probarlo en un sandbox.
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+CODEX_SKILLS_DIR="${CODEX_SKILLS_DIR:-$HOME/.agents/skills}"
 # Sidecar PROPIO del harness: acá anotamos qué registramos en la config ajena, para poder
 # retirarlo después sin adivinar. Vive al lado de qa-harness-unknown-tools.log, que ya
 # estableció ~/.gemini como un lugar donde el harness escribe lo suyo.
 STATE_FILE="${QA_HARNESS_STATE:-$GEMINI_DIR/qa-harness-state.json}"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 
-AGENTES="claude cursor antigravity"
+AGENTES="claude cursor antigravity codex"
 
 usage() {
   cat <<EOF
 QA Harness Pro — install
 
-  uso:  ./install.sh --agent <claude|cursor|antigravity|all>
+  uso:  ./install.sh --agent <claude|cursor|antigravity|codex|all>
 
     claude        skills enlazadas + CLAUDE.md base en $CLAUDE_DIR
     cursor        hooks + MCP en $CURSOR_DIR, y la rule en .cursor/rules/ de este repo
-    antigravity   hooks + MCP + skills en $CONFIG_DIR, y la rule en .agents/rules/ de este repo
-    all           los tres, en ese orden
+    antigravity   hooks + MCP en $CONFIG_DIR, skills copiadas en $CONFIG_DIR/skills, y la rule
+                  en .agents/rules/ de este repo
+    codex         hooks en $CODEX_HOME/hooks.json, bloque gestionado en config.toml (MCP de
+                  Atlassian con aprobación por tool) y en AGENTS.md, skills en $CODEX_SKILLS_DIR
+    all           los cuatro, en ese orden
 
+    --reemplazar-skills
+                  (claude y codex) si en la carpeta de skills ya hay una tuya con el mismo
+                  nombre que una del harness, la mueve a <nombre>.bak-<fecha> y enlaza la del
+                  harness. Sin esta opción, el instalador se frena y no toca nada.
     --help        muestra esta ayuda
 
   --agent es obligatorio y no tiene default: sin él no se instala nada.
-  Valores válidos: claude, cursor, antigravity, all.
+  Valores válidos: claude, cursor, antigravity, codex, all.
 EOF
 }
 
@@ -46,9 +64,11 @@ EOF
 # quien viene de Cursor creería que instaló y se iría sin reglas, con el instalador
 # diciéndole "✅". Un fallo ruidoso es mejor.
 AGENT=""
+REEMPLAZAR_SKILLS=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -h|--help) usage; exit 0 ;;
+    --reemplazar-skills) REEMPLAZAR_SKILLS=1; shift ;;
     --agent)
       if [ $# -lt 2 ]; then
         echo "❌ --agent necesita un valor."; echo; usage; exit 1
@@ -68,11 +88,11 @@ case " $AGENTES all " in
   *) echo "❌ Agente desconocido: '$AGENT'."; echo; usage; exit 1 ;;
 esac
 
-# jq solo hace falta para fusionar JSON ajeno, o sea para cursor y antigravity. La
+# jq solo hace falta para fusionar JSON ajeno, o sea para cursor, antigravity y codex. La
 # instalación de claude no lo toca, así que exigirlo ahí sería pedir una dependencia
 # que no se usa.
 case "$AGENT" in
-  cursor|antigravity|all)
+  cursor|antigravity|codex|all)
     command -v jq > /dev/null 2>&1 || {
       echo "❌ Falta jq: lo necesita la instalación de '$AGENT' para fusionar tu config JSON sin pisarla."
       echo "   macOS: brew install jq · Debian/Ubuntu: sudo apt install jq"
@@ -118,11 +138,12 @@ merge() { # merge <archivo-destino> <expresión jq> <archivo-fuente> [args extra
 }
 
 # ── claude ──────────────────────────────────────────────────────────
-BACKUP_PATH=""  # backup_if_exists deja aquí la ruta del último backup (o vacío)
+BACKUP_PATH=""  # backup_if_exists y enlazar_skills dejan aquí la ruta del último backup (o vacío)
 
-# Backup con `mv` y salteando symlinks: acá el destino se REEMPLAZA por un enlace, así
-# que el contenido previo tiene que salir del camino (no alcanza con copiarlo), y un
-# symlink previo no es contenido de nadie: se pisa sin respaldar.
+# Backup con `mv` y salteando symlinks, para el CLAUDE.md del harness que se re-renderiza:
+# el contenido previo sale del camino (no alcanza con copiarlo). Las skills NO pasan por
+# acá: un symlink en la carpeta de skills puede ser tuyo, y enlazar_skills lo decide con
+# es_del_harness.
 backup_if_exists() {
   local target="$1"
   BACKUP_PATH=""
@@ -133,40 +154,128 @@ backup_if_exists() {
   fi
 }
 
+# ¿Es del harness lo que hay en <carpeta>/<nombre>? Mismo criterio que symlink_del_harness en
+# adapters/antigravity/copias_skills.py: lo es si no existe, si es un symlink roto, si apunta a
+# skills/<nombre> de este repo, o si apunta a skills/<nombre> de OTRO clon del harness (lo dejó
+# una instalación desde otra ruta). Otro clon se reconoce porque la ruta, sin el sufijo
+# /skills/<nombre>, tiene install.sh Y core/gates/: un solo archivo con nombre genérico podría
+# estar en cualquier repo, los dos juntos solo en el harness. Todo lo demás (una carpeta o un
+# archivo real, un symlink a otro lado) es TUYO.
+es_del_harness() { # es_del_harness <ruta> <nombre>
+  local ruta="$1" name="$2" apunta sufijo="/skills/$2" raiz
+  [ -e "$ruta" ] || [ -L "$ruta" ] || return 0
+  [ -L "$ruta" ] || return 1
+  [ -e "$ruta" ] || return 0
+  apunta="$(readlink "$ruta")"
+  apunta="${apunta%/}"
+  [ "$apunta" = "$REPO_DIR/skills/$name" ] && return 0
+  case "$apunta" in
+    /*"$sufijo")
+      raiz="${apunta%"$sufijo"}"
+      [ -f "$raiz/install.sh" ] && [ -d "$raiz/core/gates" ] && return 0 ;;
+  esac
+  return 1
+}
+
+# Antes de tocar NADA (claude y codex): si en la carpeta de skills hay algo tuyo con el nombre
+# de una skill del harness, lo más probable es que sea una skill propia que se llama igual.
+# Moverla a un .bak en silencio te la haría desaparecer del agente sin que te enteres, así que
+# sin --reemplazar-skills se frena acá, con la instalación entera sin empezar.
+# Si sigue, avisa además de las skills qa-* que no son del harness: no chocan de nombre, pero
+# sus triggers pueden pisarse con los nuestros.
+revisar_conflictos_skills() { # revisar_conflictos_skills <carpeta-destino> <agente>
+  local destino="$1" agente="$2" skill name target conflictos="" entrada
+  [ -d "$REPO_DIR/skills" ] || return 0
+  for skill in "$REPO_DIR"/skills/*/; do
+    [ -d "$skill" ] || continue
+    name="$(basename "$skill")"
+    target="$destino/$name"
+    es_del_harness "$target" "$name" && continue
+    if [ -L "$target" ]; then
+      conflictos="$conflictos     $target  (symlink → $(readlink "$target"))"$'\n'
+    elif [ -d "$target" ]; then
+      conflictos="$conflictos     $target  (carpeta propia)"$'\n'
+    else
+      conflictos="$conflictos     $target  (archivo propio)"$'\n'
+    fi
+  done
+
+  if [ -n "$conflictos" ] && [ "$REEMPLAZAR_SKILLS" != "1" ]; then
+    echo "❌ En $destino ya hay skills con el mismo nombre que las del harness, y no son de este repo:"
+    printf '%s' "$conflictos"
+    echo "   Seguramente son skills tuyas que se llaman igual. No toqué nada: ni esas ni el resto de la instalación."
+    echo "   Si quieres reemplazarlas por las del harness, vuelve a correr con --reemplazar-skills:"
+    echo "     ./install.sh --agent $agente --reemplazar-skills"
+    echo "   Cada una se mueve a <nombre>.bak-<fecha> en la misma carpeta, y en su lugar queda el enlace a este repo."
+    exit 1
+  fi
+
+  local ajenas=0
+  for entrada in "$destino"/qa-*; do
+    [ -e "$entrada" ] || [ -L "$entrada" ] || continue
+    name="$(basename "$entrada")"
+    case "$name" in *.bak-*) continue ;; esac
+    [ -d "$REPO_DIR/skills/$name" ] && continue
+    es_del_harness "$entrada" "$name" && [ -L "$entrada" ] && continue
+    echo "   ⚠️  skill qa-* que no es del harness: $entrada"
+    ajenas=1
+  done
+  if [ "$ajenas" = "1" ]; then
+    echo "       Sus triggers pueden pisarse con los de las skills del harness, y el agente puede elegir cualquiera de las dos."
+  fi
+  return 0
+}
+
+# Enlazar skills (idempotente). Lo usan claude y codex: los dos leen una carpeta de skills
+# con un directorio por skill, y el symlink trae references/ entero sin copiar nada.
+# Lo del harness (un symlink nuestro, de este clon o de otro) se pisa sin respaldar: no es
+# contenido de nadie. Lo tuyo solo llega hasta acá con --reemplazar-skills (ver
+# revisar_conflictos_skills), y entonces primero se respalda con `mv` — incluso un symlink
+# tuyo, que se mueve tal cual. Sin ese backup, `ln -sfn` crearía el symlink ADENTRO de un
+# directorio existente y reportaría "enlazada" sin que fuera verdad.
+# Y si `ln` falla DESPUÉS del backup, se restaura el backup: jamás te dejamos sin
+# contenido y sin enlace a la vez.
+enlazar_skills() { # enlazar_skills <carpeta-destino> <agente>
+  local destino="$1" agente="$2" skill name target
+  [ -d "$REPO_DIR/skills" ] || return 0
+  for skill in "$REPO_DIR"/skills/*/; do
+    [ -d "$skill" ] || continue
+    name="$(basename "$skill")"
+    target="$destino/$name"
+    BACKUP_PATH=""
+    if ! es_del_harness "$target" "$name"; then
+      mv "$target" "$target.bak-$STAMP"
+      BACKUP_PATH="$target.bak-$STAMP"
+      echo "   backup: $target → $(basename "$target").bak-$STAMP"
+    fi
+    if ! ln -sfn "${skill%/}" "$target"; then
+      echo "❌ No pude crear el enlace de '$name' en $target."
+      if [ -n "$BACKUP_PATH" ]; then
+        if mv "$BACKUP_PATH" "$target" 2>/dev/null; then
+          echo "   Restauré tu contenido previo desde el backup: $target quedó como estaba (SIN enlazar a este repo)."
+        else
+          echo "   ⚠️  No pude restaurar el backup automáticamente — tu contenido sigue intacto en: $BACKUP_PATH"
+        fi
+      fi
+      echo "   La skill '$name' quedó sin enlazar. Revisa permisos de $destino y vuelve a correr ./install.sh --agent $agente."
+      exit 1
+    fi
+    echo "   skill:  $name → enlazada"
+  done
+}
+
 install_claude() {
   banner "Claude Code" "claude: $CLAUDE_DIR"
+
+  # Skills tuyas con el nombre de las del harness: se frena ANTES de crear o escribir nada.
+  revisar_conflictos_skills "$CLAUDE_DIR/skills" claude
 
   # A diferencia de cursor y antigravity, acá el directorio se CREA: ~/.claude es del
   # harness tanto como de Claude Code, y no hay config ajena que fusionar.
   mkdir -p "$CLAUDE_DIR/skills"
 
-  # 1. Enlazar skills (idempotente)
-  # Si ya existe un directorio o archivo REAL con el mismo nombre, primero se respalda:
-  # sin ese backup, `ln -sfn` crearía el symlink ADENTRO del directorio existente y
-  # reportaría "enlazada" sin que fuera verdad.
-  # Y si `ln` falla DESPUÉS del backup, se restaura el backup: jamás te dejamos sin
-  # contenido y sin enlace a la vez.
-  if [ -d "$REPO_DIR/skills" ]; then
-    for skill in "$REPO_DIR"/skills/*/; do
-      [ -d "$skill" ] || continue
-      name="$(basename "$skill")"
-      target="$CLAUDE_DIR/skills/$name"
-      backup_if_exists "$target"
-      if ! ln -sfn "${skill%/}" "$target"; then
-        echo "❌ No pude crear el enlace de '$name' en $target."
-        if [ -n "$BACKUP_PATH" ]; then
-          if mv "$BACKUP_PATH" "$target" 2>/dev/null; then
-            echo "   Restauré tu contenido previo desde el backup: $target quedó como estaba (SIN enlazar a este repo)."
-          else
-            echo "   ⚠️  No pude restaurar el backup automáticamente — tu contenido sigue intacto en: $BACKUP_PATH"
-          fi
-        fi
-        echo "   La skill '$name' quedó sin enlazar. Revisa permisos de $CLAUDE_DIR/skills y vuelve a correr ./install.sh --agent claude."
-        exit 1
-      fi
-      echo "   skill:  $name → enlazada"
-    done
-  fi
+  # 1. Enlazar skills (idempotente, con backup y restauración: ver enlazar_skills)
+  enlazar_skills "$CLAUDE_DIR/skills" claude
 
   # 2. Instalar el CLAUDE.md base solo si no existe (no pisa el tuyo)
   # "Ya existe" no alcanza como guarda: la vez anterior el archivo lo escribió ESTE
@@ -251,7 +360,7 @@ install_cursor() {
 .version = 1
 | .hooks = reduce ($new[0].hooks | to_entries[]) as $evento ((.hooks // {});
     .[$evento.key] = ([(.[$evento.key] // [])[] | select(nombre_de_script as $s | $evento.value | all(nombre_de_script != $s))] + $evento.value))' "$TMP/hooks.json"
-  echo "   hooks:  beforeShellExecution · beforeMCPExecution · afterFileEdit"
+  echo "   hooks:  beforeShellExecution · beforeMCPExecution · afterFileEdit · preToolUse/postToolUse/postToolUseFailure (Shell: lo que escribió la terminal)"
 
   merge "$CURSOR_DIR/mcp.json" '.mcpServers = ((.mcpServers // {}) * $new[0].mcpServers)' "$REPO_DIR/adapters/cursor/config/mcp.json"
   echo "   mcp:    servers atlassian y notion registrados"
@@ -277,24 +386,46 @@ install_cursor() {
 }
 
 # ── antigravity ─────────────────────────────────────────────────────
-# Anota en el sidecar el path de skills que acabamos de registrar. Si no se puede
+# Anota en el sidecar el skills/ de este repo y qué skills quedaron copiadas. Si no se puede
 # escribir, se avisa y se sigue: la instalación ya quedó hecha, y sin sidecar la próxima
-# corrida simplemente no borra nada (que es el default seguro).
-recordar_skills_path() { # recordar_skills_path <path-registrado>
-  local tmp rc=0
+# corrida simplemente reconoce menos cosas como nuestras (que es el default seguro).
+recordar_estado_antigravity() { # recordar_estado_antigravity <skills-del-repo> <copiadas-json>
+  local path="$1" copiadas="$2" tmp rc=0
   mkdir -p "$(dirname "$STATE_FILE")"
   tmp="$(mktemp)"
   if [ -f "$STATE_FILE" ] && jq empty "$STATE_FILE" > /dev/null 2>&1; then
-    jq --arg p "$1" '.antigravity.skillsPath = $p' "$STATE_FILE" > "$tmp" || rc=$?
+    jq --arg p "$path" --argjson c "$copiadas" \
+      '.antigravity.skillsPath = $p | .antigravity.skillCopies = $c | del(.antigravity.skillLinks)' "$STATE_FILE" > "$tmp" || rc=$?
   else
-    jq -n --arg p "$1" '{ antigravity: { skillsPath: $p } }' > "$tmp" || rc=$?
+    jq -n --arg p "$path" --argjson c "$copiadas" \
+      '{ antigravity: { skillsPath: $p, skillCopies: $c } }' > "$tmp" || rc=$?
   fi
   if [ "$rc" -ne 0 ]; then
     rm -f "$tmp"
-    echo "   ⚠️  No pude anotar la ruta de skills en $STATE_FILE — la próxima instalación no va a poder retirar esta entrada sola."
+    echo "   ⚠️  No pude anotar el estado en $STATE_FILE — la próxima instalación va a reconocer menos cosas como nuestras."
     return 0
   fi
   mv "$tmp" "$STATE_FILE"
+}
+
+# Retira de skills.json la entrada que registraba nuestro skills/ (la de este repo o la que
+# anotó el sidecar). Con las copias en la carpeta global, esa entrada haría que Antigravity
+# descubra cada skill dos veces. Las demás entradas son tuyas y no se tocan; si no hay nada
+# nuestro, el archivo ni se reescribe.
+retirar_entrada_skills_json() { # retirar_entrada_skills_json <skills-previo o "">
+  local sj="$CONFIG_DIR/skills.json" previo="$1" nuestras
+  [ -f "$sj" ] || return 0
+  if ! jq empty "$sj" > /dev/null 2>&1; then
+    echo "   ⚠️  $sj no es JSON válido: no lo toco. Si tiene una entrada con $REPO_DIR/skills, quítala a mano."
+    return 0
+  fi
+  local filtro='def nuestra: type == "object" and (.path == $actual or ($previo != "" and .path == $previo));'
+  nuestras="$(jq --arg actual "$REPO_DIR/skills" --arg previo "$previo" \
+    "$filtro"' [(.entries // [])[] | select(nuestra)] | length' "$sj")"
+  [ "$nuestras" -gt 0 ] || return 0
+  merge "$sj" "$filtro"' .entries = [(.entries // [])[] | select(nuestra | not)]' "$sj" \
+    --arg actual "$REPO_DIR/skills" --arg previo "$previo"
+  echo "   skills: retiré de skills.json la entrada del harness (con las copias, las listaría dos veces)"
 }
 
 install_antigravity() {
@@ -305,6 +436,8 @@ install_antigravity() {
     echo "❌ No existe $GEMINI_DIR — ¿está instalado Antigravity? Ábrelo una vez y vuelve a correr esto."
     exit 1
   fi
+  # Los hooks de Antigravity son python3, y la copia de las skills también.
+  command -v python3 > /dev/null 2>&1 || { echo "❌ Falta python3: lo necesitan los hooks y la copia de las skills de Antigravity."; exit 1; }
   mkdir -p "$CONFIG_DIR"
 
   # 1. hooks — se agrega la clave "qa-harness-pro" sin tocar tus otros grupos
@@ -316,32 +449,35 @@ install_antigravity() {
   merge "$CONFIG_DIR/mcp_config.json" '.mcpServers = ((.mcpServers // {}) * $new[0].mcpServers)' "$REPO_DIR/adapters/antigravity/config/mcp_config.json"
   echo "   mcp:    servers atlassian y notion registrados"
 
-  # 3. skills — se apunta al MISMO skills/ que usa Claude Code (fuente única)
-  render "$REPO_DIR/adapters/antigravity/config/skills.json" "$TMP/skills.json"
-  # El schema de skills.json es de Antigravity, no nuestro: una entrada es {path} y nada
-  # más. Marcar las nuestras con un campo inventado metería datos ajenos al contrato en la
-  # config del usuario, y si Antigravity validara estricto podría rechazar el archivo
-  # entero — le romperíamos la config para arreglarle un bug que quizá nunca tuvo.
+  # 3. skills — una COPIA sincronizada de cada skill en $CONFIG_DIR/skills/<skill>/, carpeta
+  # entera (references/ incluida), con una marca .qa-harness-copia.json adentro. La lógica
+  # vive en adapters/antigravity/copias_skills.py.
   #
-  # Por eso la memoria vive en un sidecar NUESTRO ($STATE_FILE): ahí queda anotado qué path
-  # registramos la última vez, y en la siguiente instalación se retira EXACTAMENTE ese.
-  # Desduplicar por `.path` contra la entrada nueva no alcanza — el path es la ruta absoluta
-  # del repo, así que reinstalar desde otra ruta dejaba las dos entradas, una apuntando a un
-  # directorio que ya no existe.
+  # Por qué copias: con solo el registro de skills.json el agente CONOCE las skills pero va a
+  # LEER el SKILL.md a las rutas estándar (<workspace>/.agents/skills/, la legacy .agent/skills/
+  # y la global ~/.gemini/config/skills/), y al no encontrarlo terminaba buscando con `find` por
+  # todo el HOME. Con symlinks en la global las encuentra, pero Antigravity resuelve el symlink
+  # y aplica su política de workspace a la ruta REAL, que queda fuera del workspace abierto:
+  # "Permission denied". Un archivo real en la carpeta global sí se lee (pruebas en vivo del
+  # 2026-09-28). El costo de copiar es que la copia puede quedar vieja: validate-config.sh
+  # compara el contenido con el repo y avisa.
   #
-  # Si el sidecar no está o no se puede leer (primera instalación, o alguien que instaló
-  # antes de este cambio), no se borra nada: solo se agrega la entrada nueva. Jamás se borra
-  # una entrada que no podamos probar que es nuestra.
+  # La carpeta es COMPARTIDA con otras herramientas: solo se reemplaza lo que lleva nuestra
+  # marca o un symlink de la instalación anterior a un clon del harness. Lo ajeno se avisa y se
+  # saltea. El sidecar ($STATE_FILE) guarda el skills/ que instaló la última vez, para reconocer
+  # lo de un clon mudado y retirar la entrada vieja de skills.json.
   local skills_path_previo=""
   if [ -f "$STATE_FILE" ]; then
     skills_path_previo="$(jq -r '.antigravity.skillsPath // empty' "$STATE_FILE" 2>/dev/null || true)"
   fi
-  merge "$CONFIG_DIR/skills.json" '.entries = ([(.entries // [])[]
-    | select($previo == "" or .path != $previo)
-    | select(.path as $p | $new[0].entries | all(.path != $p))] + $new[0].entries)' \
-    "$TMP/skills.json" --arg previo "$skills_path_previo"
-  echo "   skills: $REPO_DIR/skills registrado como fuente"
-  recordar_skills_path "$REPO_DIR/skills"
+  if ! python3 "$REPO_DIR/adapters/antigravity/copias_skills.py" sincronizar \
+      "$REPO_DIR/skills" "$CONFIG_DIR/skills" "$skills_path_previo" "$TMP/copias.json"; then
+    echo "❌ No pude copiar las skills en $CONFIG_DIR/skills. Revisa permisos y vuelve a correr ./install.sh --agent antigravity."
+    exit 1
+  fi
+  SALTEADAS="$(jq -r '.salteadas' "$TMP/copias.json")"
+  retirar_entrada_skills_json "$skills_path_previo"
+  recordar_estado_antigravity "$REPO_DIR/skills" "$(jq -c '.copiadas' "$TMP/copias.json")"
 
   # 4. rule — igual que en Cursor, va en el SCOPE DE PROYECTO. Antigravity lee las reglas del
   # workspace desde `<workspace>/.agents/rules/`, NO desde ~/.gemini. Como el repo es el
@@ -353,7 +489,13 @@ install_antigravity() {
   echo "   rules:  qa-harness.md en .agents/rules/ del repo (scope de proyecto)"
 
   echo
-  echo "✅ Instalado. Las skills son las MISMAS que usa Claude Code — un solo lugar que mantener."
+  if [ "$SALTEADAS" -gt 0 ]; then
+    echo "⚠️  Instalado, pero $SALTEADAS skill(s) quedaron SIN copiar: en $CONFIG_DIR/skills ya había algo"
+    echo "    ajeno con ese nombre (ver avisos de arriba). Antigravity va a leer ESO, no el método de este repo."
+  else
+    echo "✅ Instalado. Las skills son copias de las de este repo: si editas una, vuelve a correr"
+    echo "   ./install.sh --agent antigravity (./validate-config.sh avisa si alguna quedó desactualizada)."
+  fi
   echo
   echo "🔎 Pasos que faltan (ver adapters/antigravity/README.md):"
   echo "   ▢ 1. Reinicia Antigravity para que tome la config"
@@ -367,16 +509,114 @@ install_antigravity() {
   echo "        — es el único lugar donde se tocan: los tres runtimes lo comparten."
   echo "   ▢ 5. Verifica el gate: pídele que publique algo con un placeholder"
   echo "        sin resolver — debe bloquearlo"
+  echo "   ▢ 6. Verifica que LEE las skills desde $CONFIG_DIR/skills (sin buscar en el disco):"
+  echo "        la prueba en vivo de adapters/antigravity/README.md, en un chat nuevo FUERA del repo"
+}
+
+# ── codex ───────────────────────────────────────────────────────────
+install_codex() {
+  banner "Codex CLI" "codex: $CODEX_HOME · skills: $CODEX_SKILLS_DIR"
+
+  # Misma guarda que Cursor y Antigravity: si CODEX_HOME no existe, Codex nunca corrió acá y
+  # crearlo dejaría una config huérfana que nadie lee.
+  [ -d "$CODEX_HOME" ] || { echo "❌ No existe $CODEX_HOME — ¿está instalado Codex? Ábrelo una vez (codex) y vuelve a correr esto."; exit 1; }
+  # El bloque de config.toml se valida parseándolo antes de escribirlo: un TOML roto deja a
+  # Codex sin arrancar. tomllib viene con python3 desde la 3.11.
+  python3 -c 'import tomllib' > /dev/null 2>&1 || {
+    echo "❌ Falta python3 ≥ 3.11 (tomllib): lo necesita la instalación de codex para tocar tu config.toml sin romperlo."
+    exit 1
+  }
+  # Skills tuyas en ~/.agents/skills con el nombre de las del harness: se frena ANTES de tocar
+  # hooks.json, config.toml o AGENTS.md, para no dejarte una instalación a medias.
+  revisar_conflictos_skills "$CODEX_SKILLS_DIR" codex
+
+  # 1. hooks — ~/.codex/hooks.json, a nivel USUARIO: el .codex/ de un proyecto solo se lee si
+  # ese proyecto es "trusted", y no queremos que el gate dependa de eso.
+  #
+  # Identidad: el sufijo `adapters/codex/hooks/<script>` del command, no el command entero
+  # (lleva la ruta absoluta del repo y cambia si lo mudas) ni el nombre pelado del script
+  # (cursor y claude usan los mismos nombres). Se sacan esos hooks de CUALQUIER evento — si
+  # una versión vieja tenía uno en otro evento, no sobrevive — y los grupos nuevos se agregan
+  # AL FINAL de cada evento. El orden importa: Codex guarda la confianza de cada hook en
+  # config.toml por <evento>:<índice-de-grupo>:<índice-de-hook>, así que agregar al final no
+  # corre de lugar los hooks que ya aprobaste (Orca, gentle-ai, los tuyos).
+  render "$REPO_DIR/adapters/codex/config/hooks.json" "$TMP/codex-hooks.json"
+  merge "$CODEX_HOME/hooks.json" 'def identidad: if type == "object" then ((.command // "") | tostring | split("/") | .[-4:] | join("/")) else "" end;
+def es_nuestro: identidad as $i | $i | startswith("adapters/codex/hooks/");
+.hooks = ((.hooks // {})
+  | map_values(if type == "array" then [ .[]
+      | if (type == "object") and any((.hooks // [])[]; es_nuestro)
+        then (.hooks |= map(select(es_nuestro | not))) | select((.hooks | length) > 0)
+        else . end ] else . end)
+  | reduce ($new[0].hooks | to_entries[]) as $evento (.; .[$evento.key] = ((.[$evento.key] // []) + $evento.value)))' "$TMP/codex-hooks.json"
+  echo "   hooks:  PreToolUse (Bash · mcp__.* · Bash: foto) · PostToolUse (apply_patch|Edit|Write · Bash: lo que escribió el shell)"
+
+  # 2. config.toml — bloque gestionado entre marcas (ver adapters/codex/bloque_gestionado.py):
+  # el server atlassian, la transición fuera de la lista de tools y aprobación obligatoria
+  # por cada escritura. Jamás se reescribe tu TOML entero: se agrega o se reemplaza el bloque,
+  # y si ya definiste tu propio [mcp_servers.atlassian] no se toca nada (duplicar una tabla
+  # rompe el TOML y Codex no arranca).
+  local salida rc=0 pendiente=0
+  salida="$(python3 "$REPO_DIR/adapters/codex/bloque_gestionado.py" "$CODEX_HOME/config.toml" \
+    "$REPO_DIR/adapters/codex/config/mcp.toml" toml "$STAMP")" || rc=$?
+  case "$rc" in
+    0) echo "   mcp:    server atlassian con aprobación por tool en config.toml (bloque gestionado: $salida)" ;;
+    3)
+      pendiente=1
+      echo "   ⚠️  config.toml: $salida"
+      echo "       Agrega a mano, dentro de tu propio server, lo que trae adapters/codex/config/mcp.toml:"
+      echo "       disabled_tools = [\"transitionJiraIssue\"] y approval_mode = \"prompt\" en cada tool de escritura." ;;
+    *) echo "❌ config.toml: $salida"; exit 1 ;;
+  esac
+
+  # 3. AGENTS.md global — Codex no tiene imports como el @ruta de Claude Code, y tu
+  # ~/.codex/AGENTS.md es tuyo (en macOS, agents.md es el MISMO archivo). Por eso no se
+  # instala uno nuestro ni se pega el método entero: se agrega un bloque gestionado corto que
+  # apunta al AGENTS.md de este repo. En la raíz del repo Codex ya lo lee como instrucciones del
+  # proyecto; el bloque es la red para cuando trabajas desde otra carpeta.
+  render "$REPO_DIR/adapters/codex/AGENTS.md" "$TMP/codex-AGENTS.md"
+  rc=0
+  salida="$(python3 "$REPO_DIR/adapters/codex/bloque_gestionado.py" "$CODEX_HOME/AGENTS.md" \
+    "$TMP/codex-AGENTS.md" md "$STAMP")" || rc=$?
+  [ "$rc" -eq 0 ] || { echo "❌ AGENTS.md: $salida"; exit 1; }
+  echo "   rules:  bloque gestionado en AGENTS.md de $CODEX_HOME ($salida), apunta a $REPO_DIR/AGENTS.md"
+
+  # 4. skills — Codex las lee nativas desde ~/.agents/skills (una carpeta por skill con su
+  # SKILL.md). Symlinks como en Claude Code: references/ viaja con cada skill.
+  mkdir -p "$CODEX_SKILLS_DIR"
+  enlazar_skills "$CODEX_SKILLS_DIR" codex
+
+  echo
+  if [ "$pendiente" = "1" ]; then
+    echo "⚠️  Instalado a medias: los hooks, las reglas y las skills quedaron, la segunda capa del MCP no."
+  else
+    echo "✅ Instalado."
+  fi
+  echo
+  echo "🔎 Pasos que faltan (ver adapters/codex/README.md):"
+  echo "   ▢ 1. OBLIGATORIO — abre Codex y corre /hooks: revisa y confía en los 5 hooks del harness."
+  echo "        Codex no corre un hook que no aprobaste, y NO avisa: sin este paso no hay gate."
+  echo "        Si reinstalas desde otra ruta, el command cambia y te lo vuelve a pedir; si"
+  echo "        actualizaste el harness, /hooks te muestra solo los hooks nuevos para aprobar."
+  echo "   ▢ 2. Autentica el MCP de Atlassian: codex mcp login atlassian"
+  echo "   ▢ 3. Abre Codex EN LA RAÍZ de este repo y escribe PING-HARNESS"
+  echo "        — debe responder 'PONG <empresa> <backend> <destino>' y nada más"
+  echo "   ▢ 4. Verifica los tres gates con la prueba en vivo de adapters/codex/README.md"
+  [ "$pendiente" = "0" ] || exit 1
 }
 
 # ── Despacho ────────────────────────────────────────────────────────
 if [ "$AGENT" = "all" ]; then
   # Cada agente se instala en su PROPIO proceso: los destinos son independientes, así que
-  # que falte ~/.cursor no es razón para dejar a Claude sin skills. Se corren los tres, se
+  # que falte ~/.cursor no es razón para dejar a Claude sin skills. Se corren todos, se
   # dice cuál falló y el exit queda ≠ 0 — nada se abandona en silencio.
+  # --reemplazar-skills viaja a cada proceso hijo: si no, `--agent all --reemplazar-skills` se
+  # frenaría igual en claude y codex, como si no lo hubieras pedido.
+  OPCIONES=()
+  [ "$REEMPLAZAR_SKILLS" = "1" ] && OPCIONES+=(--reemplazar-skills)
   FALLIDOS=""
   for agente in $AGENTES; do
-    bash "${BASH_SOURCE[0]}" --agent "$agente" || FALLIDOS="$FALLIDOS $agente"
+    bash "${BASH_SOURCE[0]}" --agent "$agente" ${OPCIONES[@]+"${OPCIONES[@]}"} || FALLIDOS="$FALLIDOS $agente"
     echo
   done
   if [ -n "$FALLIDOS" ]; then
@@ -384,7 +624,7 @@ if [ "$AGENT" = "all" ]; then
     echo "   Revisa el mensaje de cada uno más arriba y vuelve a correr solo el que falló."
     exit 1
   fi
-  echo "✅ Los tres agentes quedaron instalados."
+  echo "✅ Los cuatro agentes quedaron instalados."
   exit 0
 fi
 

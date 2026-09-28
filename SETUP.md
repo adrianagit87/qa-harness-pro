@@ -1,14 +1,16 @@
 # SETUP — de clonar a "funciona"
 
-Seis pasos. No necesitas saber programar; sí tener instalada una de las tres herramientas
-soportadas: **Claude Code**, **Cursor** o **Antigravity (Gemini)**.
+Seis pasos. No necesitas saber programar; sí tener instalada una de las cuatro herramientas
+soportadas: **Claude Code**, **Cursor**, **Antigravity (Gemini)** o **Codex CLI**.
 
-Los pasos 1 a 4 son iguales para las tres. En el paso 5 eliges cuál con `--agent`. Puedes instalar
+Los pasos 1 a 4 son iguales para las cuatro. En el paso 5 eliges cuál con `--agent`. Puedes instalar
 más de una: comparten las mismas skills y la misma configuración.
 
 **Necesitas también:** `python3` (los hooks son scripts de Python) y, si vas a instalar con
-`--agent cursor`, `--agent antigravity` o `--agent all`, también `jq`: es lo que usa el instalador
-para fusionar tu JSON sin pisarlo. Con `--agent claude` no hace falta, y el instalador no te lo pide.
+`--agent cursor`, `--agent antigravity`, `--agent codex` o `--agent all`, también `jq`: es lo que usa
+el instalador para fusionar tu JSON sin pisarlo. Con `--agent claude` no hace falta, y el instalador
+no te lo pide. `--agent codex` pide además `python3` 3.11 o más nuevo, para validar tu `config.toml`
+antes de tocarlo.
 
 ## 1. Clona y entra
 
@@ -72,10 +74,12 @@ Vale correrlo de nuevo **después** del paso 5: también verifica que las skills
 de verdad (symlinks que resuelven a este repo, no rotos ni apuntando a otro lado).
 
 > **Qué cubre.** La config de empresa y perfil las valida para cualquier herramienta. La capa de
-> seguridad la inspecciona en **los tres runtimes**: `.claude/settings.json` y `.mcp.json` para
+> seguridad la inspecciona en **los cuatro runtimes**: `.claude/settings.json` y `.mcp.json` para
 > Claude Code; `~/.cursor/hooks.json`, `~/.cursor/mcp.json` y la rule `.cursor/rules/qa-harness.mdc`
-> de este repo para Cursor; y `hooks.json`, `mcp_config.json` y `skills.json` de `~/.gemini/config/`
-> para Antigravity.
+> de este repo para Cursor; `hooks.json` y `mcp_config.json` de `~/.gemini/config/` y
+> las copias de `~/.gemini/config/skills/` (avisa si alguna quedó desactualizada) para Antigravity; y `~/.codex/hooks.json`, el server de Atlassian con su segunda capa en
+> `~/.codex/config.toml`, el bloque de `~/.codex/AGENTS.md` y las skills de `~/.agents/skills` para
+> Codex (más un aviso si los hooks todavía no pasaron por `/hooks`).
 >
 > **Y que lo instalado apunte acá.** Si algo que dejó el harness fuera del repo quedó apuntando a
 > **otro clon** o a una **ruta que ya no existe**, lo reporta como error y te dice con qué comando
@@ -89,12 +93,12 @@ de verdad (symlinks que resuelven a este repo, no rotos ni apuntando a otro lado
 
 ```bash
 ./validate-config.sh --agent cursor    # solo Cursor
-./validate-config.sh --agent all       # los tres, estén instalados o no
+./validate-config.sh --agent all       # los cuatro, estén instalados o no
 ./validate-config.sh --help            # los valores válidos
 ```
 
-Sin `--agent` valida lo portable (perfil y empresa) más Claude Code siempre, y suma Cursor o
-Antigravity **solo si encuentra el harness instalado ahí**. Con un `--agent` explícito le estás
+Sin `--agent` valida lo portable (perfil y empresa) más Claude Code siempre, y suma Cursor,
+Antigravity o Codex **solo si encuentra el harness instalado ahí**. Con un `--agent` explícito le estás
 afirmando que ese runtime está instalado, así que no encontrarlo **sí** es un error.
 
 ## 5. Instala para tu herramienta
@@ -105,13 +109,14 @@ Hay **un solo instalador** y le dices para qué herramienta con `--agent`:
 ./install.sh --agent claude        # Claude Code
 ./install.sh --agent cursor        # Cursor
 ./install.sh --agent antigravity   # Antigravity (Gemini)
-./install.sh --agent all           # las tres, en ese orden
+./install.sh --agent codex         # Codex CLI
+./install.sh --agent all           # las cuatro, en ese orden
 ./install.sh --help                # la ayuda
 ```
 
 `--agent` es **obligatorio**: `./install.sh` a secas imprime la ayuda y sale con error, a propósito.
 Elegir Claude Code por default sería un éxito ambiguo — quien vino por Cursor vería un ✅ y se iría
-sin reglas. Con `--agent all` se instalan las tres por separado: si una falla, las otras quedan
+sin reglas. Con `--agent all` se instalan las cuatro por separado: si una falla, las otras quedan
 instaladas igual y el comando te dice cuál falló.
 
 ### 5a. Claude Code
@@ -134,17 +139,20 @@ Después, abre Claude Code **en la raíz de este repo**:
   permisos `allow` de `.claude/settings.json` y el harness pierde parte de su configuración de
   seguridad. Después autentica en el navegador (Jira y Confluence vía Atlassian; Notion solo si tu
   `docs.backend` es `notion`). Sin pegar tokens.
-- ¿Ya tienes skills con estos mismos nombres de otra instalación en `~/.claude/skills`?
-  `install.sh` las respalda con timestamp antes de enlazar (no pierde nada), pero si quieres
+- ¿Ya tienes skills propias con estos mismos nombres en `~/.claude/skills`? `install.sh` se frena
+  antes de tocar nada y te las lista. Para reemplazarlas por las del harness, vuelve a correrlo con
+  `--reemplazar-skills`: cada una se mueve a `<nombre>.bak-<fecha>` (no pierdes nada). Si prefieres
   probar el harness sin tocar tu setup, usa `CLAUDE_DIR=/otra/ruta ./install.sh --agent claude` y
-  abre Claude Code con `CLAUDE_CONFIG_DIR=/otra/ruta`.
+  abre Claude Code con `CLAUDE_CONFIG_DIR=/otra/ruta`. Si además tienes otras skills `qa-*`, el
+  instalador te avisa: sus triggers pueden pisarse con los del harness.
 - Los permisos del harness viven en **`.claude/settings.json`** (también versionado): lectura de
   Jira/Confluence/Notion permitida, escritura hacia afuera siempre pregunta, y cambiar estados de
   Jira (`transitionJiraIssue`) **denegado**.
 - En ese mismo archivo viven los tres hooks deterministas: antes de `Bash` se bloquean los comandos
   destructivos; después de cada `Edit` o `Write` se valida el archivo modificado (sintaxis y unit
   tests para Python, `bash -n` para shell, `json.tool` para JSON) y el error vuelve al agente como
-  feedback; y antes de escribir en Jira, Confluence o Notion se rechazan los payloads vacíos,
+  feedback — y lo mismo con lo que un comando de `Bash` escribe en disco (una foto antes del
+  comando y otra después; ver `core/gates/post_shell.py`); y antes de escribir en Jira, Confluence o Notion se rechazan los payloads vacíos,
   demasiado cortos o con placeholders. Solo se activan en sesiones abiertas desde esta raíz, porque
   apuntan a los scripts versionados en `adapters/claude/hooks/`.
 
@@ -194,17 +202,21 @@ Dos diferencias respecto a Claude Code, explicadas en detalle en
   allowlist de herramientas MCP de Cursor: **no marques las herramientas de escritura como "siempre
   permitir"**, o el hook queda como única defensa.
 - El chequeo post-edición no puede bloquear: deja una marca y la levanta como `ask` en el siguiente
-  comando de shell.
+  comando de shell. Lo que el agente escribe **por la terminal** se revisa aparte, y el error le
+  llega en el mismo turno como contexto (`additional_context`), sin bloquear.
 
 ### 5c. Antigravity (Gemini)
 
 ```bash
-./install.sh --agent antigravity
-```
+.Fusiona hooks y servers MCP en `~/.gemini/config/` sin pisar lo que ya tengas (backup con
+timestamp) y **copia** cada skill en `~/.gemini/config/skills/`, la carpeta global de donde
+Antigravity lee las skills (a través de un symlink no puede: su política de workspace se lo niega).
+La fuente es la misma `skills/` de este repo, pero la copia es una foto: **si editás una skill,
+volvé a correr `./install.sh --agent antigravity`**; `./validate-config.sh` avisa si alguna copia
+quedó desactualizada. Lo ajeno que ya haya en esa carpeta no se toca (ver
+`adapters/antigravity/README.md`, *Cómo llegan las skills*, con la prueba en vivo).
 
-Fusiona hooks, servers MCP y el registro de skills en `~/.gemini/config/` sin pisar lo que ya tengas
-(backup con timestamp). Las skills son **las mismas**: `skills.json` apunta al directorio `skills/`
-de este repo, así que una edición se ve desde las tres herramientas.
+as skills*, con la prueba en vivo).
 
 Y sincroniza la rule en `.agents/rules/qa-harness.md` **dentro de este repo**: igual que Cursor,
 Antigravity lee las reglas del workspace, no de tu HOME. Por eso hay que abrir Antigravity en la
@@ -227,19 +239,54 @@ Tres diferencias, explicadas en detalle en
 - No hay bloque de permisos: el hook devuelve `deny` para las transiciones de Jira y `force_ask`
   para toda escritura externa. `force_ask` ignora el "siempre permitir", así que cada publicación se
   confirma.
-- El chequeo post-edición avisa un turno después, vía un segundo hook.
+- El chequeo post-edición avisa un turno después, vía un segundo hook. Y **no cubre lo que el
+  agente escribe por la terminal** (`run_command`): el hook no trae un id por llamada que una el
+  antes con el después del comando.
 - **Los nombres de las tools MCP no están documentados.** Los hooks las reconocen por patrón y
   anotan en `~/.gemini/qa-harness-unknown-tools.log` cualquier tool que huela a Atlassian o Notion y
   no haya matcheado. Este paso hay que cerrarlo a mano la primera vez: pide una lectura y un
   comentario en Jira, mira el log y, si aparece algo, agrega esa tool al catálogo en
   **`core/gates/catalogo.py`**. Es el único lugar donde se tocan: el catálogo es compartido, así que
-  los tres runtimes heredan el cambio. No edites los hooks de `adapters/`.
+  todos los runtimes heredan el cambio. No edites los hooks de `adapters/`.
 
 > **Limitación conocida de Antigravity.** Hay un límite documentado de 12.000 caracteres por archivo
-> de reglas, y las dos skills más grandes del método lo superan: pueden aparecer listadas por nombre
-> y no llegar a cargarse. La medición, lo que está y lo que no está probado, y el experimento que lo
-> confirmaría, en [`adapters/antigravity/README.md`](./adapters/antigravity/README.md). Claude Code y
-> Cursor no están afectados.
+> de reglas, y las dos skills más grandes del método lo superaban: se observó una listada por nombre
+> que no llegó a cargarse. Ahora quedan por debajo —el detalle de cada paso vive en `references/`,
+> dentro de la carpeta de la skill—, pero eso todavía no está verificado en una instalación real. La
+> medición, lo que está y lo que no está probado, y el experimento que lo confirmaría, en [`adapters/antigravity/README.md`](./adapters/antigravity/README.md). Claude Code,
+> Cursor y Codex no están afectados.
+
+### 5d. Codex CLI
+
+```bash
+./install.sh --agent codex
+```
+
+Respeta `CODEX_HOME` (la misma variable que usa Codex; default `~/.codex`) y no toca nada que no sea
+suyo, con backup con timestamp de cada archivo que cambia:
+
+- **Hooks** en `~/.codex/hooks.json`: agrega los tres del harness **al final** de cada evento; los
+  tuyos quedan iguales y primero.
+- **`~/.codex/config.toml`**: un bloque entre marcas `# >>> qa-harness-pro >>>` con el server MCP de
+  Atlassian, la transición de estados fuera de la lista de tools y aprobación obligatoria en cada
+  escritura. Tu TOML no se reescribe: el bloque se agrega o se reemplaza, y el resultado se valida
+  antes de escribirlo. Si ya tienes tu propio `[mcp_servers.atlassian]`, no se agrega (duplicarlo
+  rompería el TOML): te dice qué sumar a mano y sale con error.
+- **`~/.codex/AGENTS.md`**: otro bloque entre marcas, corto, que apunta al `AGENTS.md` de este repo.
+  Tu contenido queda intacto.
+- **Skills**: un symlink por skill en `~/.agents/skills`, donde Codex las lee de forma nativa.
+
+Después, **un paso que no se puede saltar**: abre Codex, corre `/hooks` y confía en los tres hooks
+del harness. Codex no corre un hook que no aprobaste, y no avisa: sin ese paso no hay gate. Luego
+`codex mcp login atlassian` y abre Codex **en la raíz de este repo**.
+
+Dos diferencias, explicadas en detalle en [`adapters/codex/README.md`](./adapters/codex/README.md),
+junto con una prueba en vivo de los tres gates con objetivos inofensivos:
+
+- El hook no puede pedir confirmación, solo denegar. La confirmación la pone `config.toml`
+  (`approval_mode = "prompt"` en cada escritura), y la transición ni se le ofrece al modelo.
+- El chequeo post-edición avisa en el momento, pero no puede impedir la edición (un deny previo
+  sobre `apply_patch` no se respeta en Codex: openai/codex#27833).
 
 ---
 

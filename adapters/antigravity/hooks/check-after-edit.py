@@ -63,9 +63,10 @@ def main() -> int:
         return 0
 
     root = Path(os.environ.get("QA_HARNESS_ROOT") or _agy.HARNESS_ROOT).resolve()
-    veredicto = post_edicion.revisar_archivo(file_raw, root)
+    veredicto = post_edicion.revisar_archivo(file_raw, root, _agy.HARNESS_ROOT)
     # Abstenerse (archivo fuera del harness o inexistente) es silencio: no es
-    # asunto de este gate.
+    # asunto de este gate. La unica excepcion es el baseline configurado, que el
+    # core valida este donde este.
     if veredicto.bloquea:
         mark(sin_acentos(veredicto.motivo))
     return 0

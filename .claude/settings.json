@@ -49,6 +49,19 @@
             ]
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/snapshot-before-shell.py"
+            ],
+            "timeout": 15
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -60,6 +73,34 @@
             "command": "python3",
             "args": [
               "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/check-after-edit.py"
+            ],
+            "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/check-after-shell.py"
+            ],
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "PostToolUseFailure": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/check-after-shell.py"
             ],
             "timeout": 120
           }

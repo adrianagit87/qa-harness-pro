@@ -1,8 +1,8 @@
 # QA Harness Pro — método
 
-Este archivo es la **fuente única** de las reglas del agente: vale igual para Claude Code, Cursor y
-Antigravity. Cada runtime lo importa desde su propio archivo de reglas, y en esos adaptadores queda
-solo lo que de verdad cambia entre herramientas.
+Este archivo es la **fuente única** de las reglas del agente: vale igual para Claude Code, Cursor,
+Antigravity y Codex. Cada runtime lo importa desde su propio archivo de reglas (Codex lo lee nativo
+en la raíz del repo), y en esos adaptadores queda solo lo que de verdad cambia entre herramientas.
 
 El método completo vive en `skills/`. **Leé el `SKILL.md` que corresponda antes de operar** — no
 trabajes de memoria:
@@ -14,6 +14,7 @@ trabajes de memoria:
 | Cerrar un ciclo en cualquier ambiente de `environments` | `skills/qa-cierre-ciclo/SKILL.md` |
 | Cerrar el ciclo en producción (cierre formal + página aparte) | `skills/qa-cierre-prod/SKILL.md` |
 | Evaluar o escribir automatización | `skills/qa-automatizacion/SKILL.md` |
+| Consolidar o consultar el baseline (solo con `baseline.enabled: true`) | `skills/qa-baseline/SKILL.md` |
 
 ## Config — cargar antes de operar
 
@@ -102,14 +103,27 @@ Para qué sirve — y solo para esto:
 4. **Decí qué usaste.** Si algo del análisis sale de memoria previa, marcalo — el usuario tiene
    que poder distinguir lo que salió del ticket de lo que salió de tu recuerdo.
 
+## Baseline (opcional)
+
+Si la config de la empresa tiene `baseline.enabled: true`, el proyecto tiene un baseline:
+reglas verificadas por casos ✅ Pass en el ambiente final, cada una con su trazabilidad. Lo
+escribe y lo lee `skills/qa-baseline/SKILL.md`. Sin ese bloque, o apagado, no existe: no lo
+menciones.
+
+**Orden de verdad: ticket > baseline > memoria.** El baseline dice cómo se comportaba el producto
+cuando se verificó; el ticket dice cómo tiene que comportarse ahora. Si se contradicen, **manda
+el ticket** y la desviación se reporta en el análisis (`Desviaciones del baseline`), nunca
+se resuelve en silencio. El baseline manda sobre la memoria previa: está verificado, la memoria no.
+
 ## Reglas que no se rompen
 
 1. **Mostrá el borrador antes de publicar.** Todo lo que salga hacia Jira, Confluence o Notion se
    muestra primero y se publica solo con confirmación explícita. El humano dirige, la IA ejecuta.
 2. **Nunca cambies el estado de un ticket.** Las transiciones de Jira las hace la persona, a mano.
-   Cada runtime lo bloquea por su lado: en Cursor y Antigravity lo deniega el hook, y en Claude
-   Code lo deniega la lista `deny` de permisos, así que el hook ni llega a verlo. No dependas de
-   ninguno de los dos mecanismos: no lo intentes.
+   Cada runtime lo bloquea por su lado: en Cursor y Antigravity lo deniega el hook, en Codex la
+   tool ni siquiera está disponible (y si lo estuviera, la deniega el hook), y en Claude Code lo
+   deniega la lista `deny` de permisos, así que el hook ni llega a verlo. No dependas de ninguno
+   de esos mecanismos: no lo intentes.
 3. **No inventes datos.** Ni una URL, ni un payload, ni un nombre de tabla, ni un valor de base de
    datos, ni un ID. Si no lo tenés, pedilo o dejá el hueco marcado. Un dato fabricado que alguien
    copia y ejecuta contra staging hace daño real.

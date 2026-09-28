@@ -6,7 +6,8 @@
 #   ./validate-config.sh --agent claude         solo Claude Code
 #   ./validate-config.sh --agent cursor         solo Cursor
 #   ./validate-config.sh --agent antigravity    solo Antigravity
-#   ./validate-config.sh --agent all            los tres, estén instalados o no
+#   ./validate-config.sh --agent codex          solo Codex CLI
+#   ./validate-config.sh --agent all            los cuatro, estén instalados o no
 #
 # Qué valida (campo por campo, no con un grep ciego; los campos string se extraen con strip():
 # un valor de solo espacios cuenta como vacío, no como configurado):
@@ -18,6 +19,9 @@
 #     de la URL igual a tracker.host — se parsea con urllib, no se busca subcadena)
 #     y el bloque del backend de docs QUE USAS. El bloque del backend NO usado puede quedar con
 #     placeholders — se ignora a propósito (no es un error tener el template intacto ahí).
+#     Y el bloque opcional `baseline`, solo si existe y tiene enabled: true (ruta .md —relativa,
+#     absoluta o con ~—, módulos con código válido y sin repetir, espejo none|notion|confluence
+#     con pageId).
 #
 #   claude:
 #   - .mcp.json: no solo JSON válido — que los servers atlassian/notion apunten a las URLs oficiales.
@@ -28,9 +32,13 @@
 #   - Skills enlazadas en $CLAUDE_DIR/skills: symlinks reales que resuelven a skills/ de ESTE repo.
 #
 #   cursor:       $CURSOR_DIR/hooks.json, $CURSOR_DIR/mcp.json y la rule en .cursor/rules/ del repo.
-#   antigravity:  $GEMINI_DIR/config/{hooks,mcp_config,skills}.json y la rule en .agents/rules/.
+#   antigravity:  $GEMINI_DIR/config/{hooks,mcp_config}.json, las copias de skills en
+#                 $GEMINI_DIR/config/skills/ y la rule en .agents/rules/.
+#   codex:        $CODEX_HOME/hooks.json (y si hay aprobación registrada en /hooks), el MCP de
+#                 Atlassian con su segunda capa en config.toml, el bloque de AGENTS.md y las skills
+#                 enlazadas en $CODEX_SKILLS_DIR.
 #
-#   Y para los tres, el chequeo que importa: TODO lo que el harness dejó instalado afuera tiene
+#   Y para todos, el chequeo que importa: TODO lo que el harness dejó instalado afuera tiene
 #   que resolver ADENTRO de este repo. Config apuntando a otro clon es un gate que no protege.
 set -uo pipefail
 
@@ -43,21 +51,24 @@ CURSOR_DIR="${CURSOR_DIR:-$HOME/.cursor}"
 GEMINI_DIR="${GEMINI_DIR:-$HOME/.gemini}"
 CONFIG_DIR="$GEMINI_DIR/config"
 STATE_FILE="${QA_HARNESS_STATE:-$GEMINI_DIR/qa-harness-state.json}"
+CODEX_HOME="${CODEX_HOME:-$HOME/.codex}"
+CODEX_SKILLS_DIR="${CODEX_SKILLS_DIR:-$HOME/.agents/skills}"
 ERRORS=0
 WARNINGS=0
 
-AGENTES="claude cursor antigravity"
+AGENTES="claude cursor antigravity codex"
 
 usage() {
   cat <<EOF
 QA Harness Pro — validación de configuración
 
-  uso:  ./validate-config.sh [--agent <claude|cursor|antigravity|all>]
+  uso:  ./validate-config.sh [--agent <claude|cursor|antigravity|codex|all>]
 
     claude        .mcp.json, .claude/settings.json, el CLAUDE.md base y las skills de $CLAUDE_DIR
     cursor        hooks y MCP en $CURSOR_DIR, y la rule en .cursor/rules/ de este repo
     antigravity   hooks, MCP y skills en $CONFIG_DIR, y la rule en .agents/rules/ de este repo
-    all           los tres, estén instalados o no
+    codex         hooks, config.toml y AGENTS.md en $CODEX_HOME, y las skills de $CODEX_SKILLS_DIR
+    all           los cuatro, estén instalados o no
 
     --help        muestra esta ayuda
 
@@ -65,7 +76,7 @@ QA Harness Pro — validación de configuración
   empresa) más cada runtime que se encuentre instalado. Es el modo que AGENTS.md documenta
   como paso de reparación, y romperlo cambiaría el significado de una instrucción que ya
   viaja en el ~/.claude/CLAUDE.md de cada usuario.
-  Valores válidos: claude, cursor, antigravity, all.
+  Valores válidos: claude, cursor, antigravity, codex, all.
 EOF
 }
 
@@ -132,8 +143,11 @@ primera_linea_util() { grep -v '^[[:space:]]*$' "$1" 2>/dev/null | head -1 || tr
 # apuntando a otro lado". Se usan EXACTAMENTE las mismas reglas de identidad que install.sh
 # — si divergen, el validador miente:
 #   · cursor       → el NOMBRE del script del hook (por eso desduplica el instalador)
-#   · antigravity  → el grupo 'qa-harness-pro' (hooks) y el sidecar $STATE_FILE (skills)
+#   · antigravity  → el grupo 'qa-harness-pro' (hooks), la marca de las copias de skills/ y el sidecar
+#                    $STATE_FILE (la entrada vieja de skills.json)
 #   · claude       → la FORMA del import '@<algo>/AGENTS.md' y los symlinks de skills/
+#   · codex        → el sufijo 'adapters/codex/hooks/<script>' del command, las marcas del
+#                    bloque gestionado y los symlinks de skills/
 # Lo que no entra en esas reglas es del USUARIO: un hook suyo o un server suyo apuntando a
 # donde quiera no es un error nuestro, y no se toca ni se reporta.
 comandos_de_hooks() { # comandos_de_hooks <archivo> <clave-raíz o ""> <resolver-{{HARNESS}} 0|1>
@@ -172,6 +186,27 @@ scripts_del_adaptador() { # scripts_del_adaptador <agente> — nombres de los ho
   while IFS= read -r cmd; do
     [ -n "$cmd" ] && nombre_de_script "$(script_del_comando "$cmd")"
   done < <(comandos_de_hooks "$cfg" "" 0)
+}
+
+# Los hooks del harness en un hooks.json de Codex, uno por línea:
+#   <evento>\t<matcher>\t<índice-de-grupo>\t<índice-de-hook>\t<command>
+# Los índices hacen falta para encontrar la aprobación que Codex guarda en config.toml
+# (hooks.state."<hooks.json>:<evento>:<grupo>:<hook>"). Mismo criterio de identidad que
+# install.sh: el sufijo adapters/codex/hooks/<script> del command.
+hooks_de_codex() { # hooks_de_codex <hooks.json>
+  python3 - "$1" <<'PY' 2>/dev/null
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+eventos = d.get("hooks", {}) if isinstance(d, dict) else {}
+for evento, grupos in (eventos.items() if isinstance(eventos, dict) else []):
+    for g, grupo in enumerate(grupos if isinstance(grupos, list) else []):
+        if not isinstance(grupo, dict):
+            continue
+        for h, hook in enumerate(grupo.get("hooks") or []):
+            cmd = hook.get("command") if isinstance(hook, dict) else None
+            if isinstance(cmd, str) and "/".join(cmd.split("/")[-4:]).startswith("adapters/codex/hooks/"):
+                print(f"{evento}\t{grupo.get('matcher', '')}\t{g}\t{h}\t{cmd}")
+PY
 }
 
 REPO_REAL="$(resolve_path "$REPO_DIR")"
@@ -240,6 +275,11 @@ hay_footprint_antigravity() {
   [ "$(json_get "$CONFIG_DIR/hooks.json" "'qa-harness-pro' in d")" = "True" ]
 }
 
+hay_footprint_codex() {
+  json_valido "$CODEX_HOME/hooks.json" || return 1
+  [ -n "$(hooks_de_codex "$CODEX_HOME/hooks.json")" ]
+}
+
 if [ -n "$AGENT" ]; then
   MODO="explicito"
   case "$AGENT" in
@@ -252,7 +292,8 @@ else
   SELECCION="claude"
   hay_footprint_cursor && SELECCION="$SELECCION cursor"
   hay_footprint_antigravity && SELECCION="$SELECCION antigravity"
-  echo "   agentes: $SELECCION (lo que encontré instalado — usa --agent <claude|cursor|antigravity|all> para elegir)"
+  hay_footprint_codex && SELECCION="$SELECCION codex"
+  echo "   agentes: $SELECCION (lo que encontré instalado — usa --agent <claude|cursor|antigravity|codex|all> para elegir)"
 fi
 echo
 
@@ -293,6 +334,87 @@ validar_mcp_servers() { # validar_mcp_servers <archivo> <etiqueta> <cómo-repara
   else
     warn "$etiqueta: el server 'notion' falta o no apunta al oficial (https://mcp.notion.com/mcp). Con docs.backend=confluence o jira no lo necesitas, pero si algún día cambias a notion, restáuralo."
   fi
+}
+
+# El baseline (skill qa-baseline). Solo se llama si el bloque existe.
+# La ruta puede estar en cualquier lado: el gate post-edición reconoce la ruta configurada
+# de la empresa activa aunque quede fuera de la raíz del proyecto.
+BASELINE_MARCA="<!-- qa-harness:baseline v1 -->"
+MODULO_RE='^[A-Z][A-Z0-9]*(-[A-Z][A-Z0-9]*)*$'
+validar_baseline() { # validar_baseline <archivo-empresa>
+  local archivo="$1" es_dict enabled mpath mreal modcount modbad moddup mbackend mpage bloque_ok=1
+  es_dict="$(json_get "$archivo" "isinstance(d['baseline'],dict)")"
+  if [ "$es_dict" != "True" ]; then
+    fail "baseline tiene que ser un objeto (mira companies/_template.json)."
+    return
+  fi
+  enabled="$(json_get "$archivo" "d['baseline'].get('enabled', False) is True")"
+  if [ "$(json_get "$archivo" "isinstance(d['baseline'].get('enabled', False), bool)")" != "True" ]; then
+    fail "baseline.enabled tiene que ser true o false (sin comillas)."
+    return
+  fi
+  if [ "$enabled" != "True" ]; then
+    ok "baseline desactivado (enabled: false) — el resto del bloque no se valida."
+    return
+  fi
+
+  mpath="$(json_get_str "$archivo" "d['baseline'].get('path','')")"
+  if is_placeholder "$mpath"; then
+    fail "baseline.enabled es true pero baseline.path está vacío o en placeholder (ej. \"baseline/baseline.md\")."
+    bloque_ok=0
+  else
+    case "$mpath" in
+      *.md)
+        # Cualquier ruta sirve: relativa (a la raíz del repo), absoluta o con '~'. Se resuelve
+        # igual que el gate post-edición (core/gates/baseline.py → ruta_configurada).
+        mreal="$(python3 -c "import os,sys; p=os.path.expanduser(sys.argv[1]); print(os.path.realpath(p if os.path.isabs(p) else os.path.join(sys.argv[2], p)))" "$mpath" "$REPO_DIR" 2>/dev/null)"
+        if [ -f "$mreal" ] && [ "$(head -1 "$mreal" | tr -d '\r')" != "$BASELINE_MARCA" ]; then
+          fail "$mpath existe pero su primera línea no es $BASELINE_MARCA — el gate lo validaría y lo bloquearía en la próxima escritura."
+          bloque_ok=0
+        elif [ ! -d "$(dirname "$mreal")" ]; then
+          warn "baseline.path: la carpeta $(dirname "$mreal") todavía no existe — créala antes de la primera consolidación."
+        fi ;;
+      *)
+        fail "baseline.path tiene que terminar en .md (tiene: '$mpath')."
+        bloque_ok=0 ;;
+    esac
+  fi
+
+  modcount="$(json_get "$archivo" "len(d['baseline']['modules']) if isinstance(d['baseline'].get('modules',[]),list) else -1")"
+  : "${modcount:=-1}"
+  if [ "$modcount" = "-1" ]; then
+    fail "baseline.modules tiene que ser una lista de {\"code\", \"name\"}."
+    bloque_ok=0
+  elif [ "$modcount" = "0" ]; then
+    warn "baseline.modules está vacío — al consolidar, qa-baseline te va a proponer cada módulo y preguntar antes de agregarlo."
+  else
+    modbad="$(json_get "$archivo" "sum(1 for m in d['baseline']['modules'] if not isinstance(m,dict) or not isinstance(m.get('code'),str) or not __import__('re').match(r'$MODULO_RE', m['code'].strip()) or not isinstance(m.get('name'),str) or not m['name'].strip())")"
+    moddup="$(json_get "$archivo" "(lambda cs: len(cs) - len(set(cs)))([m.get('code','').strip() for m in d['baseline']['modules'] if isinstance(m,dict) and isinstance(m.get('code'),str)])")"
+    if [ "${modbad:-1}" != "0" ]; then
+      fail "baseline.modules tiene $modbad entrada(s) inválida(s) — cada módulo necesita \"code\" en mayúsculas con guiones (ej. \"VEN-PED\") y un \"name\" no vacío."
+      bloque_ok=0
+    fi
+    if [ "${moddup:-0}" != "0" ]; then
+      fail "baseline.modules repite códigos — cada código identifica un módulo y prefija los IDs de sus reglas."
+      bloque_ok=0
+    fi
+  fi
+
+  mbackend="$(json_get_str "$archivo" "d['baseline'].get('mirror',{}).get('backend','none') if isinstance(d['baseline'].get('mirror',{}),dict) else '?'")"
+  case "$mbackend" in
+    none) : ;;
+    notion|confluence)
+      mpage="$(json_get_str "$archivo" "d['baseline']['mirror'].get('pageId','')")"
+      if is_placeholder "$mpage"; then
+        fail "baseline.mirror.backend=$mbackend pero baseline.mirror.pageId está vacío o en placeholder — es la página que se sobrescribe con el espejo."
+        bloque_ok=0
+      fi ;;
+    *)
+      fail "baseline.mirror.backend debe ser 'none', 'notion' o 'confluence' (tiene: '$mbackend')."
+      bloque_ok=0 ;;
+  esac
+
+  [ "$bloque_ok" = "1" ] && ok "baseline activo: $mpath (espejo: $mbackend)."
 }
 
 # ════════════════════════════════════════════════════════════════════
@@ -483,8 +605,67 @@ if [ -n "$ACTIVE" ] && [ -f "companies/$ACTIVE.json" ]; then
     # -- automation es opcional — solo aviso --
     FRAMEWORK="$(json_get "$COMPANY_FILE" "d.get('automation',{}).get('framework','')")"
     [ -z "$FRAMEWORK" ] && warn "automation sin configurar — qa-automatizacion solo podrá evaluar, no generar código integrado (OK si no automatizas aún)."
+
+    # -- baseline es opcional: sin el bloque, o con enabled != true, la función está apagada
+    #    y no se valida nada (el template trae el bloque apagado a propósito) --
+    HAS_BASELINE="$(json_get "$COMPANY_FILE" "'baseline' in d")"
+    if [ "$HAS_BASELINE" = "True" ]; then
+      validar_baseline "$COMPANY_FILE"
+    fi
   fi
 fi
+
+# Skills enlazadas (claude y codex, con la misma regla):
+# Enlazada = symlink ∧ destino existente ∧ resuelve a skills/<nombre> de ESTE repo.
+# Un symlink roto o apuntando a otro lado NO cuenta como enlazada.
+validar_skills_enlazadas() { # validar_skills_enlazadas <carpeta> <agente>
+  local carpeta="$1" agente="$2" LINKED=0 name link TOTAL skill
+  for skill in skills/*/; do
+    name="$(basename "$skill")"
+    link="$carpeta/$name"
+    if [ ! -e "$link" ] && [ ! -L "$link" ]; then
+      continue  # no enlazada a secas — la cuenta el resumen de abajo
+    elif [ ! -L "$link" ]; then
+      warn "skill '$name': $link existe pero NO es un symlink — no cuenta como enlazada (¿copia vieja, o una skill tuya que se llama igual?). El instalador no la toca sin permiso: para reemplazarla por la del harness corre ./install.sh --agent $agente --reemplazar-skills (hace backup antes de enlazar)."
+    elif [ ! -e "$link" ]; then
+      warn "skill '$name': symlink ROTO — apunta a '$(readlink "$link")' que ya no existe. No cuenta como enlazada; corre ./install.sh --agent $agente"
+    elif [ "$(resolve_path "$link")" != "$(resolve_path "${skill%/}")" ]; then
+      warn "skill '$name': el symlink apunta a '$(readlink "$link")', no a la skill de este repo ($(resolve_path "${skill%/}")). No cuenta como enlazada; corre ./install.sh --agent $agente (si ese symlink es tuyo, agrega --reemplazar-skills: lo respalda antes de enlazar)"
+    else
+      LINKED=$((LINKED+1))
+    fi
+  done
+  TOTAL=$(find skills -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+  if [ "$LINKED" -eq "$TOTAL" ]; then
+    ok "Las $TOTAL skills están enlazadas en $carpeta (symlinks que resuelven a este repo)."
+  else
+    warn "Solo $LINKED de $TOTAL skills enlazadas de verdad en $carpeta — corre ./install.sh --agent $agente"
+  fi
+}
+
+# Skills COPIADAS (antigravity): Antigravity no lee a través de un symlink que sale del
+# workspace, así que ahí van copias con una marca .qa-harness-copia.json. Al día = la copia
+# existe, lleva nuestra marca, vino de ESTE repo y su contenido es idéntico al del repo.
+validar_copias_antigravity() { # validar_copias_antigravity <carpeta>
+  local carpeta="$1" name est detalle al_dia=0 total=0
+  while IFS="$(printf '\t')" read -r name est detalle; do
+    [ -n "$name" ] || continue
+    total=$((total+1))
+    case "$est" in
+      ok) al_dia=$((al_dia+1)) ;;
+      falta) ;;  # la cuenta el resumen de abajo
+      desactualizada) warn "skill '$name': copia desactualizada: corré ./install.sh --agent antigravity (el contenido de $carpeta/$name ya no es el de skills/$name de este repo)." ;;
+      otro-clon) warn "skill '$name': la copia de $carpeta/$name vino de OTRO clon ('$detalle'), no de este repo. Corré ./install.sh --agent antigravity" ;;
+      symlink) warn "skill '$name': $carpeta/$name es un symlink (→ $detalle). Antigravity lo resuelve y su política de workspace le bloquea leer fuera del workspace. Corré ./install.sh --agent antigravity (si es de una instalación anterior del harness lo reemplaza por una copia; si es ajeno, no lo toca: quítalo a mano)." ;;
+      ajena) warn "skill '$name': $carpeta/$name existe y no es una copia del harness — Antigravity lee ESO, no la skill de este repo (¿copia vieja del método?). El instalador no lo toca: muévelo fuera de $carpeta y corré ./install.sh --agent antigravity" ;;
+    esac
+  done < <(python3 "$REPO_DIR/adapters/antigravity/copias_skills.py" estado "$REPO_DIR/skills" "$carpeta" 2>/dev/null)
+  if [ "$total" -gt 0 ] && [ "$al_dia" -eq "$total" ]; then
+    ok "antigravity: las $total skills están copiadas en $carpeta y al día con este repo."
+  else
+    warn "antigravity: solo $al_dia de $total skills copiadas y al día en $carpeta — corré ./install.sh --agent antigravity"
+  fi
+}
 
 # ════════════════════════════════════════════════════════════════════
 # claude — .mcp.json, .claude/settings.json, el CLAUDE.md base y las skills enlazadas
@@ -594,30 +775,7 @@ validar_claude() {
   fi
 
   # 6. skills enlazadas (respeta CLAUDE_DIR, igual que install.sh)
-  # Enlazada = symlink ∧ destino existente ∧ resuelve a skills/<nombre> de ESTE repo.
-  # Un symlink roto o apuntando a otro lado NO cuenta como enlazada.
-  local LINKED=0 name link TOTAL
-  for skill in skills/*/; do
-    name="$(basename "$skill")"
-    link="$CLAUDE_DIR/skills/$name"
-    if [ ! -e "$link" ] && [ ! -L "$link" ]; then
-      continue  # no enlazada a secas — la cuenta el resumen de abajo
-    elif [ ! -L "$link" ]; then
-      warn "skill '$name': $link existe pero NO es un symlink — no cuenta como enlazada (¿copia vieja?). Corre ./install.sh --agent claude (hace backup antes de enlazar)."
-    elif [ ! -e "$link" ]; then
-      warn "skill '$name': symlink ROTO — apunta a '$(readlink "$link")' que ya no existe. No cuenta como enlazada; corre ./install.sh --agent claude"
-    elif [ "$(resolve_path "$link")" != "$(resolve_path "${skill%/}")" ]; then
-      warn "skill '$name': el symlink apunta a '$(resolve_path "$link")', no a la skill de este repo ($(resolve_path "${skill%/}")). No cuenta como enlazada; corre ./install.sh --agent claude"
-    else
-      LINKED=$((LINKED+1))
-    fi
-  done
-  TOTAL=$(find skills -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
-  if [ "$LINKED" -eq "$TOTAL" ]; then
-    ok "Las $TOTAL skills están enlazadas en $CLAUDE_DIR/skills (symlinks que resuelven a este repo)."
-  else
-    warn "Solo $LINKED de $TOTAL skills enlazadas de verdad en $CLAUDE_DIR/skills — corre ./install.sh --agent claude"
-  fi
+  validar_skills_enlazadas "$CLAUDE_DIR/skills" claude
 }
 
 # ════════════════════════════════════════════════════════════════════
@@ -724,33 +882,26 @@ validar_antigravity() {
     fail "antigravity: $CONFIG_DIR/mcp_config.json no es JSON válido — no va a levantar ningún server MCP. Corre ./install.sh --agent antigravity (hace backup antes de fusionar)."
   fi
 
-  # skills: el schema de Antigravity es {path} y nada más, así que la entrada no lleva marcas
-  # nuestras. Lo que la identifica es el sidecar, igual que en install.sh: ahí quedó anotado
-  # QUÉ path registramos la última vez. Sin sidecar no se puede probar que una entrada sea
-  # nuestra, y una entrada ajena apuntando afuera no es asunto del validador.
-  local skills_json="$CONFIG_DIR/skills.json" nuestro="$REPO_DIR/skills"
-  local registrado="" tiene_nuestro tiene_registrado vieja_reportada=0
+  # skills: Antigravity LEE un SKILL.md desde las rutas estándar (<workspace>/.agents/skills/ o
+  # la global $CONFIG_DIR/skills/), y no a través de un symlink que sale del workspace. Por eso
+  # ahí van copias, y lo que se valida es que estén al día con el repo.
+  validar_copias_antigravity "$CONFIG_DIR/skills"
+
+  # Y la entrada vieja de skills.json ya no tiene que estar: junto con las copias, haría que
+  # Antigravity descubra cada skill dos veces. Es nuestra si apunta al skills/ de este repo o al
+  # que anotó el sidecar; las demás entradas son del usuario y no se miran.
+  local skills_json="$CONFIG_DIR/skills.json" nuestro="$REPO_DIR/skills" registrado="" ruta
   if [ -f "$STATE_FILE" ]; then
     registrado="$(json_get_str "$STATE_FILE" "d.get('antigravity',{}).get('skillsPath','')")"
   fi
-  if [ ! -f "$skills_json" ]; then
-    no_instalado antigravity "no existe $skills_json"
-  elif ! python3 -m json.tool "$skills_json" >/dev/null 2>&1; then
-    fail "antigravity: $skills_json no es JSON válido — no va a cargar ninguna skill. Corre ./install.sh --agent antigravity (hace backup antes de fusionar)."
-  else
-    if [ -n "$registrado" ] && [ "$registrado" != "$nuestro" ]; then
-      tiene_registrado="$(json_get "$skills_json" "any(isinstance(e,dict) and e.get('path')=='$registrado' for e in d.get('entries',[]))")"
-      if [ "$tiene_registrado" = "True" ]; then
-        ruta_instalada_ok antigravity "antigravity: la entrada de skills de $skills_json (la que anotó el sidecar $STATE_FILE)" "$registrado"
-        vieja_reportada=1
+  if [ -f "$skills_json" ] && python3 -m json.tool "$skills_json" >/dev/null 2>&1; then
+    for ruta in "$nuestro" "$registrado"; do
+      [ -n "$ruta" ] || continue
+      if [ "$(json_get "$skills_json" "any(isinstance(e,dict) and e.get('path')=='$ruta' for e in d.get('entries',[]))")" = "True" ]; then
+        warn "antigravity: $skills_json todavía registra '$ruta' — junto con las copias, Antigravity listaría cada skill dos veces. Corre ./install.sh --agent antigravity (la retira y deja tus otras entradas)."
+        break
       fi
-    fi
-    tiene_nuestro="$(json_get "$skills_json" "any(isinstance(e,dict) and e.get('path')=='$nuestro' for e in d.get('entries',[]))")"
-    if [ "$tiene_nuestro" = "True" ]; then
-      ok "antigravity: skills.json registra el skills/ de este repo."
-    elif [ "$vieja_reportada" = "0" ]; then
-      no_instalado antigravity "$skills_json no registra $nuestro"
-    fi
+    done
   fi
 
   # La rule va en el scope de PROYECTO: Antigravity lee <workspace>/.agents/rules/, no ~/.gemini.
@@ -762,9 +913,192 @@ validar_antigravity() {
   fi
 }
 
+# Helpers de codex en python. Viven como funciones y no inline dentro de $(...): el bash 3.2
+# de macOS parsea mal un heredoc con backticks adentro de una sustitución de comando.
+aprobaciones_de_codex() { # aprobaciones_de_codex <config.toml> <hooks.json> <clave>... → cuántas tienen aprobación
+  python3 - "$@" <<'PY' 2>/dev/null
+import os, sys, tomllib
+config, hooks, *claves = sys.argv[1:]
+try:
+    estado = tomllib.load(open(config, "rb")).get("hooks", {}).get("state", {})
+except Exception:
+    print(-1); sys.exit()
+rutas = {hooks, os.path.realpath(hooks)}
+print(sum(1 for c in claves if any(isinstance(estado.get(f"{r}:{c}"), dict) and estado[f"{r}:{c}"].get("trusted_hash") for r in rutas)))
+PY
+}
+
+reporte_toml_de_codex() { # reporte_toml_de_codex <config.toml> → líneas NIVEL<TAB>mensaje
+  python3 - "$1" "$REPO_DIR" <<'PY' 2>&1
+import sys
+try:
+    import tomllib
+except ImportError:
+    print("WARN\tno pude validar config.toml: hace falta python3 ≥ 3.11 (tomllib)."); sys.exit()
+config, repo = sys.argv[1:]
+sys.path.insert(0, repo)
+from core.gates import catalogo
+try:
+    d = tomllib.load(open(config, "rb"))
+except tomllib.TOMLDecodeError as exc:
+    print(f"FAIL\t{config} no es TOML válido ({exc}) — Codex no arranca así."); sys.exit()
+atl = d.get("mcp_servers", {}).get("atlassian")
+if not isinstance(atl, dict):
+    print("NOINST\tno tiene el server [mcp_servers.atlassian]"); sys.exit()
+if atl.get("url") != "https://mcp.atlassian.com/v1/mcp/authv2":
+    print("FAIL\tel server atlassian no apunta al oficial (esperado: url = \"https://mcp.atlassian.com/v1/mcp/authv2\").")
+else:
+    print("OK\tserver atlassian OK (URL oficial).")
+pre = "mcp__atlassian__"
+deshabilitadas = set(atl.get("disabled_tools") or [])
+habilitadas = atl.get("enabled_tools")
+for i in catalogo.IDS_TRANSICION:
+    t = i[len(pre):]
+    if t in deshabilitadas or (isinstance(habilitadas, list) and t not in habilitadas):
+        print(f"OK\t{t} fuera de la lista de tools (segunda capa del deny de transiciones).")
+    else:
+        print(f"FAIL\t{t} sigue disponible para el modelo — falta disabled_tools = [\"{t}\"]; queda solo el hook para frenarlo.")
+tools = atl.get("tools", {}) if isinstance(atl.get("tools"), dict) else {}
+sin_prompt = [i[len(pre):] for i in catalogo.IDS_PUBLICACION if i.startswith(pre)
+              and (tools.get(i[len(pre):]) or {}).get("approval_mode") != "prompt"]
+if sin_prompt:
+    print("FAIL\testas escrituras no piden aprobación siempre (approval_mode = \"prompt\"): " + ", ".join(sin_prompt) + ".")
+else:
+    print("OK\ttodas las escrituras de Atlassian del catálogo piden aprobación (approval_mode = \"prompt\").")
+PY
+}
+
+agents_md_de_codex() { # agents_md_de_codex <CODEX_HOME> → el AGENTS.md al que apunta el bloque ("?" si no nombra ninguno)
+  python3 - "$1" <<'PY' 2>/dev/null
+import os, re, sys
+home = sys.argv[1]
+try:
+    nombres = [n for n in os.listdir(home) if n.lower() == "agents.md"]
+except OSError:
+    nombres = []
+for nombre in (["AGENTS.md"] if "AGENTS.md" in nombres else nombres):
+    texto = open(os.path.join(home, nombre), encoding="utf-8").read()
+    bloque = re.search(r"<!-- >>> qa-harness-pro >>>.*?<!-- <<< qa-harness-pro <<< -->", texto, re.S)
+    if bloque:
+        ruta = re.search(r"`([^`]+)/AGENTS\.md`", bloque.group(0))
+        print(ruta.group(1) + "/AGENTS.md" if ruta else "?")
+        break
+PY
+}
+
+# ════════════════════════════════════════════════════════════════════
+# codex — hooks, config.toml y AGENTS.md en $CODEX_HOME, skills en $CODEX_SKILLS_DIR
+# ════════════════════════════════════════════════════════════════════
+validar_codex() {
+  echo
+  echo "🔹 codex — $CODEX_HOME"
+  local hooks="$CODEX_HOME/hooks.json" config="$CODEX_HOME/config.toml"
+  local evento matcher g h cmd script base presentes="" rutas_ok=1 propios=0 esperado
+  local claves_de_confianza="" aprobados=0 clave claves_del_par_shell="" aprobados_del_par
+
+  # 1. hooks.json — lo nuestro se reconoce por el sufijo adapters/codex/hooks/<script>.
+  if [ ! -f "$hooks" ]; then
+    no_instalado codex "no existe $hooks"
+  elif ! python3 -m json.tool "$hooks" >/dev/null 2>&1; then
+    fail "codex: $hooks no es JSON válido — Codex no va a cargar ningún hook y los gates no corren. Corre ./install.sh --agent codex (hace backup antes de fusionar)."
+  else
+    while IFS=$'\t' read -r evento matcher g h cmd; do
+      [ -n "$cmd" ] || continue
+      script="$(script_del_comando "$cmd")"
+      base="$(nombre_de_script "$script")"
+      presentes="$presentes $evento|$matcher|$base"
+      propios=$((propios+1))
+      clave="$(python3 -c 'import re,sys; print(re.sub(r"(?<!^)(?=[A-Z])", "_", sys.argv[1]).lower())' "$evento"):$g:$h"
+      claves_de_confianza="$claves_de_confianza $clave"
+      case "$base" in
+        snapshot-before-shell.py|check-after-shell.py) claves_del_par_shell="$claves_del_par_shell $clave" ;;
+      esac
+      ruta_instalada_ok codex "codex: el hook '$base' de $hooks" "$script" || rutas_ok=0
+    done < <(hooks_de_codex "$hooks")
+
+    # Cada gate tiene que estar en SU evento y con SU matcher: un check-after-edit enganchado
+    # en PreToolUse correría antes de que el archivo exista y no validaría nada.
+    while IFS=$'\t' read -r evento matcher g h cmd; do
+      [ -n "$cmd" ] || continue
+      esperado="$evento|$matcher|$(nombre_de_script "$(script_del_comando "$cmd")")"
+      case " $presentes " in
+        *" $esperado "*) ;;
+        *) fail "codex: falta el hook '${esperado##*|}' en $evento con matcher '$matcher' en $hooks — ese gate no está conectado. Corre ./install.sh --agent codex"; rutas_ok=0 ;;
+      esac
+    done < <(hooks_de_codex "$REPO_DIR/adapters/codex/config/hooks.json")
+
+    if [ "$propios" -eq 0 ]; then
+      no_instalado codex "$hooks no tiene ningún hook del harness"
+    elif [ "$rutas_ok" = "1" ]; then
+      ok "codex: los $propios hooks del harness apuntan a este repo."
+    fi
+  fi
+
+  # 2. Confianza (/hooks). Codex no corre un hook que no aprobaste, y no avisa. La aprobación
+  # queda en config.toml como hooks.state."<hooks.json>:<evento>:<grupo>:<hook>" con un hash.
+  # Lo que se puede ver desde afuera es si HAY una aprobación registrada en la posición de
+  # cada hook nuestro; si ese hash corresponde a la versión actual del command, no: el hash lo
+  # calcula Codex y no está documentado. Por eso la presencia es solo informativa (ℹ️, no ✅) y
+  # la ausencia es aviso.
+  if [ "$propios" -gt 0 ] && [ -f "$config" ]; then
+    aprobados="$(aprobaciones_de_codex "$config" "$hooks" $claves_de_confianza)"
+    : "${aprobados:=-1}"
+    if [ "$aprobados" = "-1" ]; then
+      warn "codex: no pude leer las aprobaciones de /hooks en $config (¿python3 < 3.11 o TOML inválido?)."
+    elif [ "$aprobados" -eq "$propios" ]; then
+      echo "ℹ️  codex: hay una aprobación de /hooks registrada para los $propios hooks del harness. Ojo: no puedo verificar que corresponda a la versión actual — si reinstalaste, confírmalo en /hooks."
+    else
+      warn "codex: solo $aprobados de $propios hooks del harness tienen una aprobación registrada en /hooks — Codex NO corre un hook sin aprobar, y no avisa. Abre Codex, corre /hooks y confía en los del harness."
+    fi
+    # El gate de shell es un PAR: snapshot-before-shell.py saca la foto y check-after-shell.py
+    # la compara. Con uno solo aprobado, el post no encuentra foto y se abstiene en silencio:
+    # parece conectado y no revisa nada. Ese caso se nombra aparte.
+    if [ -n "$claves_del_par_shell" ] && [ "$aprobados" != "-1" ]; then
+      aprobados_del_par="$(aprobaciones_de_codex "$config" "$hooks" $claves_del_par_shell)"
+      if [ "$aprobados_del_par" = "1" ]; then
+        warn "codex: de snapshot-before-shell.py y check-after-shell.py hay UNO solo aprobado en /hooks — el gate de lo que se escribe por la terminal necesita los dos; con uno, se abstiene en silencio. Abre Codex, corre /hooks y confía en ambos."
+      fi
+    fi
+  fi
+
+  # 3. config.toml — se valida la config EFECTIVA, no el bloque: si tuviste que hacerlo a mano
+  # porque ya tenías tu propio [mcp_servers.atlassian], también cuenta.
+  local reporte linea
+  if [ ! -f "$config" ]; then
+    no_instalado codex "no existe $config"
+  else
+    reporte="$(reporte_toml_de_codex "$config")"
+    while IFS=$'\t' read -r nivel linea; do
+      case "$nivel" in
+        OK) ok "codex: config.toml: $linea" ;;
+        WARN) warn "codex: $linea" ;;
+        NOINST) no_instalado codex "$config $linea" ;;
+        FAIL) fail "codex: config.toml: $linea Corre ./install.sh --agent codex (o, si ya tenías tu propio server atlassian, agrégalo a mano desde adapters/codex/config/mcp.toml)." ;;
+        *) [ -n "$nivel$linea" ] && warn "codex: salida inesperada al validar config.toml: $nivel $linea" ;;
+      esac
+    done <<< "$reporte"
+  fi
+
+  # 4. AGENTS.md global — el bloque gestionado tiene que apuntar al AGENTS.md de ESTE repo.
+  # (En macOS agents.md y AGENTS.md son el mismo archivo: se busca sin distinguir mayúsculas.)
+  local apuntado
+  apuntado="$(agents_md_de_codex "$CODEX_HOME")"
+  if [ -z "$apuntado" ]; then
+    no_instalado codex "$CODEX_HOME/AGENTS.md no tiene el bloque del harness"
+  elif [ "$apuntado" = "?" ]; then
+    fail "codex: el bloque del harness en $CODEX_HOME/AGENTS.md no nombra ningún AGENTS.md. Corre ./install.sh --agent codex"
+  elif ruta_instalada_ok codex "codex: el bloque de $CODEX_HOME/AGENTS.md" "$apuntado"; then
+    ok "codex: el bloque de AGENTS.md apunta al AGENTS.md de este repo."
+  fi
+
+  # 5. skills — misma regla que claude, en la carpeta de skills de usuario de Codex.
+  validar_skills_enlazadas "$CODEX_SKILLS_DIR" codex
+}
+
 en_scope claude && validar_claude
 en_scope cursor && validar_cursor
 en_scope antigravity && validar_antigravity
+en_scope codex && validar_codex
 
 echo
 if [ "$ERRORS" -gt 0 ]; then

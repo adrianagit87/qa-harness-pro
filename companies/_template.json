@@ -58,5 +58,14 @@
     "framework": "",
     "workspacePath": "",
     "subprojects": []
+  },
+  "baseline": {
+    "enabled": false,
+    "path": "baseline/baseline.md",
+    "modules": [],
+    "mirror": {
+      "backend": "none",
+      "pageId": ""
+    }
   }
 }

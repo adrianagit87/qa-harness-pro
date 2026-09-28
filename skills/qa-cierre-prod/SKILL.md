@@ -175,6 +175,13 @@ comentario formal de PROD lo refleja tal cual.
 ⚠️ Recuerda: cambia el estado a Done manualmente en Jira.
 ```
 
+### Paso 6 — Baseline (solo si aplica)
+
+Si `baseline.enabled` es `true` **y** el resultado final quedó
+`✅ FUNCIONALIDAD APROBADA EN PRODUCCIÓN` (ya publicado), carga [[qa-baseline]] en modo
+**CONSOLIDAR**. Si no, omite este paso sin mencionarlo. El camino Jira-only no consolida: la skill
+lo avisa.
+
 ## Persistencia (opcional)
 
 Si tienes memoria persistente (Engram u otra), guarda un resumen del cierre PROD (pass rate, incidencias, resultado final). **Sin memoria persistente: omite este paso** — no afecta el cierre ni la publicación.

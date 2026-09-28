@@ -1,0 +1,27 @@
+# Server MCP de Atlassian para Codex, con la segunda capa del gate de publicaciones.
+#
+# El hook validate-external-write.py revisa el CONTENIDO (placeholders, payload vacío) y
+# deniega las transiciones. Esta capa no depende de que el hook muerda:
+#   - la transición de estados ni siquiera se le ofrece al modelo (disabled_tools);
+#   - cada escritura del catálogo (core/gates/catalogo.py) pide aprobación SIEMPRE
+#     (approval_mode = "prompt"), aunque hayas aprobado otras tools en la sesión.
+#
+# tests/test_codex_hooks.py falla si esta lista se desfasa del catálogo.
+[mcp_servers.atlassian]
+url = "https://mcp.atlassian.com/v1/mcp/authv2"
+disabled_tools = ["transitionJiraIssue"]
+
+[mcp_servers.atlassian.tools.addCommentToJiraIssue]
+approval_mode = "prompt"
+
+[mcp_servers.atlassian.tools.createJiraIssue]
+approval_mode = "prompt"
+
+[mcp_servers.atlassian.tools.editJiraIssue]
+approval_mode = "prompt"
+
+[mcp_servers.atlassian.tools.createConfluencePage]
+approval_mode = "prompt"
+
+[mcp_servers.atlassian.tools.updateConfluencePage]
+approval_mode = "prompt"

@@ -18,6 +18,27 @@
         "command": "python3 {{HARNESS}}/adapters/cursor/hooks/check-after-edit.py",
         "timeout": 120
       }
+    ],
+    "preToolUse": [
+      {
+        "command": "python3 {{HARNESS}}/adapters/cursor/hooks/snapshot-before-shell.py",
+        "matcher": "Shell",
+        "timeout": 15
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "python3 {{HARNESS}}/adapters/cursor/hooks/check-after-shell.py",
+        "matcher": "Shell",
+        "timeout": 120
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "command": "python3 {{HARNESS}}/adapters/cursor/hooks/check-after-shell.py",
+        "matcher": "Shell",
+        "timeout": 120
+      }
     ]
   }
 }

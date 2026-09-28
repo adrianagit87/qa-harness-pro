@@ -15,10 +15,13 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_temporal import BASELINE_ROTO, BASELINE_VALIDO, copiar_harness, escribir_config  # noqa: E402
 HOOKS = ROOT / "adapters" / "cursor" / "hooks"
 
 # Donde escriben los hooks cuando no hay override, relativo a HOME.
@@ -146,6 +149,162 @@ class AfterFileEdit(HookTestCase):
     def test_ignora_archivos_fuera_del_harness(self):
         self.run_hook(self.HOOK, {"file_path": "/etc/hosts", "edits": []})
         self.assertFalse(self.pending.exists())
+
+
+class BaselineConfiguradoFueraDelHarness(HookTestCase):
+    """El baseline configurado se valida esté donde esté; lo demás de afuera, no."""
+
+    def setUp(self):
+        super().setUp()
+        dirs = [tempfile.TemporaryDirectory() for _ in range(2)]
+        for temporal in dirs:
+            self.addCleanup(temporal.cleanup)
+        harness, afuera = (Path(d.name) for d in dirs)
+        self.hook = copiar_harness(harness, "cursor") / "check-after-edit.py"
+        self.baseline = afuera / "baseline.md"
+        escribir_config(harness, {"enabled": True, "path": str(self.baseline)})
+
+    def editar(self, path: Path) -> None:
+        env = {**base_env(self.home), "QA_HARNESS_PENDING_CHECK": str(self.pending)}
+        subprocess.run([sys.executable, str(self.hook)], input=json.dumps({"file_path": str(path), "edits": []}),
+                       text=True, capture_output=True, check=False, env=env)
+
+    def test_el_baseline_roto_deja_la_marca(self):
+        self.baseline.write_text(BASELINE_ROTO, encoding="utf-8")
+        self.editar(self.baseline)
+        self.assertIn("baseline invalido", self.pending.read_text(encoding="utf-8"))
+
+    def test_el_baseline_valido_no_deja_marca(self):
+        self.baseline.write_text(BASELINE_VALIDO, encoding="utf-8")
+        self.editar(self.baseline)
+        self.assertFalse(self.pending.exists())
+
+    def test_otro_markdown_de_afuera_sigue_ignorado(self):
+        ajeno = self.baseline.parent / "otro.md"
+        ajeno.write_text(BASELINE_ROTO, encoding="utf-8")
+        self.editar(ajeno)
+        self.assertFalse(self.pending.exists())
+
+
+def _git(raiz: Path, *args: str) -> None:
+    sin_ajeno = {"GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+    subprocess.run(["git", "-C", str(raiz), *args], check=True, capture_output=True, env={**os.environ, **sin_ajeno})
+
+
+def _escribir(ruta: Path, texto: str) -> None:
+    """Escribe y adelanta el mtime: el diff no depende de la resolución del reloj."""
+    ruta.write_text(texto, encoding="utf-8")
+    futuro = time.time_ns() + 5_000_000_000
+    os.utime(ruta, ns=(futuro, futuro))
+
+
+class EscrituraPorShell(HookTestCase):
+    """preToolUse + postToolUse (matcher "Shell"): lo que escribe la terminal.
+
+    Contrato (docs de hooks de Cursor y el bundle cursor-agent-exec de 3.21.9):
+      preToolUse          in {"tool_name":"Shell","tool_input","tool_use_id","conversation_id","cwd",...}
+      postToolUse         in lo mismo + "tool_output"       out {"additional_context": str}
+      postToolUseFailure  in lo mismo + "error_message"     out {"additional_context": str}
+    """
+
+    def setUp(self):
+        super().setUp()
+        proyecto = tempfile.TemporaryDirectory()
+        self.addCleanup(proyecto.cleanup)
+        self.raiz = Path(proyecto.name).resolve()
+        _git(self.raiz, "init", "-q")
+        self.tmp = self.home / "tmp"
+        self.tmp.mkdir()
+        self.fotos = self.tmp / "qa-harness-cursor"
+        self.env = {**base_env(self.home), "QA_HARNESS_ROOT": str(self.raiz), "TMPDIR": str(self.tmp),
+                    "QA_HARNESS_PENDING_CHECK": str(self.pending),
+                    "GIT_CONFIG_GLOBAL": os.devnull, "GIT_CONFIG_NOSYSTEM": "1"}
+
+    def payload(self, evento: str, **extra) -> dict:
+        datos = {"conversation_id": "c-1", "generation_id": "g-1", "hook_event_name": evento,
+                 "tool_name": "Shell", "tool_input": {"command": "printf x > y"},
+                 "tool_use_id": "call-1", "cwd": str(self.raiz)}
+        if evento == "postToolUse":
+            datos["tool_output"] = '{"exitCode":0,"stdout":""}'
+        datos.update(extra)
+        return {k: v for k, v in datos.items() if v is not None}
+
+    def pre(self, **extra) -> str:
+        return self.run_hook("snapshot-before-shell.py", self.payload("preToolUse", **extra), self.env)
+
+    def post(self, evento: str = "postToolUse", **extra) -> str:
+        return self.run_hook("check-after-shell.py", self.payload(evento, **extra), self.env)
+
+    def test_json_invalido_escrito_por_la_terminal_vuelve_como_contexto(self):
+        self.assertEqual(self.pre(), "")
+        _escribir(self.raiz / "zz-prueba-cursor.json", '{"a": }')
+        contexto = json.loads(self.post())["additional_context"]
+        self.assertIn("YA QUEDO ESCRITO", contexto)
+        self.assertIn("fallo JSON despues de editar zz-prueba-cursor.json", contexto)
+        self.assertFalse(self.pending.exists(), "el aviso ya llegó: no hace falta la marca diferida")
+
+    def test_un_comando_que_fallo_tambien_avisa(self):
+        self.pre()
+        _escribir(self.raiz / "roto.json", "{")
+        self.assertIn("roto.json", json.loads(self.post("postToolUseFailure"))["additional_context"])
+
+    def test_json_valido_no_dice_nada(self):
+        self.pre()
+        _escribir(self.raiz / "ok.json", "{}")
+        self.assertEqual(self.post(), "")
+
+    def test_lo_roto_de_antes_se_ignora(self):
+        _escribir(self.raiz / "viejo.json", "{")
+        self.pre()
+        self.assertEqual(self.post(), "")
+
+    def test_sin_foto_de_antes_se_abstiene(self):
+        _escribir(self.raiz / "roto.json", "{")
+        self.assertEqual(self.post(), "")
+
+    def test_la_foto_es_de_esa_llamada_y_de_esa_conversacion(self):
+        for otra in ({"tool_use_id": "call-otra"}, {"conversation_id": "c-otra"}):
+            with self.subTest(otra=otra):
+                self.pre(**otra)
+                _escribir(self.raiz / "roto.json", "{")
+                self.assertEqual(self.post(), "")
+                (self.raiz / "roto.json").unlink()
+
+    def test_sin_tool_use_id_no_hay_foto(self):
+        self.pre(tool_use_id=None)
+        self.assertFalse(self.fotos.exists() and any(self.fotos.iterdir()))
+
+    def test_otra_herramienta_o_stdin_ilegible_es_silencio(self):
+        self.assertEqual(self.pre(tool_name="Write"), "")
+        self.assertFalse(self.fotos.exists() and any(self.fotos.iterdir()))
+        self.assertEqual(self.post(tool_name="Write"), "")
+        for script in ("snapshot-before-shell.py", "check-after-shell.py"):
+            resultado = subprocess.run([sys.executable, str(HOOKS / script)], input="{no es json",
+                                       text=True, capture_output=True, check=False, env=self.env)
+            self.assertEqual((resultado.returncode, resultado.stdout.strip()), (0, ""))
+
+    def test_la_foto_se_consume_y_vive_fuera_del_repo(self):
+        self.pre()
+        (foto,) = self.fotos.iterdir()
+        self.assertNotIn(self.raiz, foto.parents)
+        self.post()
+        self.assertEqual(list(self.fotos.iterdir()), [])
+
+
+class ConfiguracionDeCursor(unittest.TestCase):
+    def test_el_par_del_shell_esta_enganchado_con_matcher_shell(self):
+        hooks = json.loads((ROOT / "adapters" / "cursor" / "config" / "hooks.json").read_text(encoding="utf-8"))["hooks"]
+        esperados = {
+            "preToolUse": "snapshot-before-shell.py",
+            "postToolUse": "check-after-shell.py",
+            "postToolUseFailure": "check-after-shell.py",
+        }
+        for evento, script in esperados.items():
+            with self.subTest(evento=evento):
+                (entrada,) = hooks[evento]
+                self.assertEqual(entrada["matcher"], "Shell")
+                self.assertTrue(entrada["command"].endswith(f"/adapters/cursor/hooks/{script}"))
+                self.assertTrue((HOOKS / script).is_file())
 
 
 class AislamientoDelHome(HookTestCase):

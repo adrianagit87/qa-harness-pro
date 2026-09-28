@@ -58,6 +58,30 @@ class RevisarComando(unittest.TestCase):
             with self.subTest(comando=comando):
                 self.assert_permite(comando)
 
+    def test_un_guion_dentro_de_un_nombre_no_es_una_opcion(self) -> None:
+        """`-pr` en `zz-prueba` no es `-r`, ni `-dir` en `path-dir` es `-d`."""
+        for comando in (
+            "rm -f zz-prueba-codex.json",
+            "rm -f mi-reporte.txt",
+            "rm -f test-run.log",
+            "git clean -f path-dir",
+        ):
+            with self.subTest(comando=comando):
+                self.assert_permite(comando)
+
+    def test_un_nombre_con_guion_no_desactiva_el_bloqueo(self) -> None:
+        """`-name` no es `-n`: si lo fuera, el git clean pasaría como simulación."""
+        casos = (
+            ("git clean -fd some-name", "git clean forzado"),
+            ("git clean -fd build --exclude=keep-notes", "git clean forzado"),
+            ("rm -rf mi-carpeta-reciente", "rm recursivo y forzado"),
+            ("rm -f -r some-dir", "rm recursivo y forzado"),
+            ("rm --recursive --force dir", "rm recursivo y forzado"),
+        )
+        for comando, motivo in casos:
+            with self.subTest(comando=comando):
+                self.assert_bloquea(comando, motivo)
+
     def test_falla_cerrado_con_un_comando_ilegible(self) -> None:
         """Si no se puede leer, no se puede descartar que sea destructivo."""
         for comando in (None, "", "   ", 42, {"command": "rm -rf /"}):

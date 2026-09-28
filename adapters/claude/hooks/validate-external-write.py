@@ -26,6 +26,9 @@ def main() -> int:
     if payload is None:
         denegar("entrada inválida; no pude inspeccionar lo que iba a salir.")
         return 0
+    if _claude.lo_invoca_cursor(payload):
+        _claude.ceder_a_cursor()
+        return 0
 
     veredicto = publicacion.revisar_publicacion(payload.get("tool_name"), payload.get("tool_input"))
     # Este hook se engancha por matcher: si llega otra herramienta, la config

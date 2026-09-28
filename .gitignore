@@ -3,6 +3,8 @@ companies/*.json
 !companies/_template.json
 profile/*.json
 !profile/profile.example.json
+# El baseline es conocimiento de TU producto: tampoco se versiona acá
+baseline/
 
 # Secretos y config local
 # (.mcp.json SÍ se versiona: no contiene secretos — la autenticación es OAuth en el navegador)

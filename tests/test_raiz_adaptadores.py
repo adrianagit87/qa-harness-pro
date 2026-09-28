@@ -1,4 +1,4 @@
-"""Los tres adaptadores tienen que encontrar la misma raíz del harness.
+"""Los cuatro adaptadores tienen que encontrar la misma raíz del harness.
 
 Cada shim arranca con un bootstrap inline que sube buscando la marca
 `core/gates/contract.py`. Está duplicado a propósito y no se puede evitar: para
@@ -23,6 +23,7 @@ SHIMS = {
     "claude": RAIZ / "adapters" / "claude" / "hooks" / "_claude.py",
     "cursor": RAIZ / "adapters" / "cursor" / "hooks" / "_cursor.py",
     "antigravity": RAIZ / "adapters" / "antigravity" / "hooks" / "_agy.py",
+    "codex": RAIZ / "adapters" / "codex" / "hooks" / "_codex.py",
 }
 
 
@@ -56,7 +57,7 @@ class TestRaizDeLosAdaptadores(unittest.TestCase):
             with self.subTest(runtime=runtime):
                 self.assertEqual(raiz_segun(shim), str(RAIZ))
 
-    def test_los_tres_coinciden(self):
+    def test_todos_coinciden(self):
         raices = {runtime: raiz_segun(shim) for runtime, shim in SHIMS.items()}
         self.assertEqual(
             len(set(raices.values())),

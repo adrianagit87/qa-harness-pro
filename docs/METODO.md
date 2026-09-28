@@ -32,9 +32,22 @@ entero ES un ejemplo del modelo loop/goal/harness que enseña.
    "Cierre PROD X"→ ┌─────────────────────┐
                     │   qa-cierre-prod    │  cierre formal + página de cierre separada
                     └─────────────────────┘
+                              │ aprobado en el ambiente final (y `baseline` encendido)…
+                              ▼
+                    ┌─────────────────────┐
+                    │     qa-baseline     │  CONSOLIDAR: reglas verificadas → baseline
+                    └─────────────────────┘  (qa-analisis-ticket lo CONSULTA antes de la Fase 1)
 ```
 
 Cada etapa es independiente: puedes usar solo el análisis, solo los cierres, o el ciclo completo.
+
+**El baseline (opcional).** Si lo enciendes en la config, cada ticket aprobado en el
+ambiente `final: true` deja en un `.md` local las reglas que sus casos ✅ Pass verificaron, cada
+una con caso, ticket, fecha y ambiente. Consolida el cierre que aprueba el ambiente final:
+`qa-cierre-prod`, o `qa-cierre-ciclo` cuando es él quien cierra ese ambiente (por ejemplo, con un
+solo ambiente en la config). El análisis del
+siguiente ticket lo lee antes de empezar; si el ticket lo contradice, manda el ticket y la
+desviación queda escrita, para que el cierre reemplace la regla vieja sin perder su historia.
 
 ## Los principios detrás (el porqué del diseño)
 
@@ -60,7 +73,7 @@ Este harness es, en sí mismo, el modelo que enseña:
 
 | Concepto | Dónde lo ves en este recurso |
 |---|---|
-| **Harness** | El repo entero: tools (MCP) + método (skills) + reglas (`AGENTS.md` como fuente única; el `CLAUDE.md` de Claude Code y el `GEMINI.md` de Antigravity lo importan y solo agregan lo propio de su runtime, y la rule de Cursor apunta a él) + config alrededor del modelo |
+| **Harness** | El repo entero: tools (MCP) + método (skills) + reglas (`AGENTS.md` como fuente única; el `CLAUDE.md` de Claude Code y el `GEMINI.md` de Antigravity lo importan y solo agregan lo propio de su runtime, la rule de Cursor apunta a él, y Codex lo lee nativo en la raíz del repo) + config alrededor del modelo |
 | **Goal** | El gate (✅/⚠️/❌), el conteo exacto de casos, el pass rate del cierre — criterios verificables en cada etapa |
 | **Loop** | Cada skill itera: leer → analizar → proponer borrador → tu feedback → ajustar → publicar |
 
