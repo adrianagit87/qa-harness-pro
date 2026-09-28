@@ -41,9 +41,10 @@ def main() -> int:
         return 0
 
     root = Path(os.environ.get("QA_HARNESS_ROOT") or _cursor.HARNESS_ROOT).resolve()
-    veredicto = post_edicion.revisar_archivo(file_raw, root)
+    veredicto = post_edicion.revisar_archivo(file_raw, root, _cursor.HARNESS_ROOT)
     # Abstenerse (archivo fuera del harness o inexistente) es silencio: este
-    # hook corre sobre toda edicion, tambien fuera del proyecto.
+    # hook corre sobre toda edicion, tambien fuera del proyecto. La unica
+    # excepcion es el baseline configurado, que el core valida este donde este.
     if veredicto.bloquea:
         mark(sin_acentos(veredicto.motivo))
     return 0

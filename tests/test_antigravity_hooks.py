@@ -19,6 +19,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_temporal import BASELINE_ROTO, BASELINE_VALIDO, copiar_harness, escribir_config  # noqa: E402
 HOOKS = ROOT / "adapters" / "antigravity" / "hooks"
 SETTINGS = ROOT / ".claude" / "settings.json"
 
@@ -210,6 +212,46 @@ class CheckAfterEdit(HookTestCase):
     def test_ignora_los_archivos_fuera_del_harness(self):
         """ABSTENERSE acá es silencio: no deja marca pendiente."""
         self.run_hook(self.HOOK, call("write_to_file", {"TargetFile": "/etc/hosts"}))
+        self.assertFalse(self.pending.exists())
+
+
+class BaselineConfiguradoFueraDelHarness(HookTestCase):
+    """El baseline configurado se valida esté donde esté; lo demás de afuera, no."""
+
+    def setUp(self):
+        super().setUp()
+        dirs = [tempfile.TemporaryDirectory() for _ in range(2)]
+        for temporal in dirs:
+            self.addCleanup(temporal.cleanup)
+        harness, afuera = (Path(d.name) for d in dirs)
+        self.hook = copiar_harness(harness, "antigravity") / "check-after-edit.py"
+        self.baseline = afuera / "baseline.md"
+        escribir_config(harness, {"enabled": True, "path": str(self.baseline)})
+
+    def editar(self, path: Path) -> None:
+        env = {
+            **base_env(self.home),
+            "QA_HARNESS_UNKNOWN_TOOLS_LOG": str(self.unknown_log),
+            "QA_HARNESS_PENDING_CHECK": str(self.pending),
+        }
+        subprocess.run([sys.executable, str(self.hook)],
+                       input=json.dumps(call("write_to_file", {"TargetFile": str(path)})),
+                       text=True, capture_output=True, check=False, env=env)
+
+    def test_el_baseline_roto_deja_la_marca(self):
+        self.baseline.write_text(BASELINE_ROTO, encoding="utf-8")
+        self.editar(self.baseline)
+        self.assertIn("baseline invalido", self.pending.read_text(encoding="utf-8"))
+
+    def test_el_baseline_valido_no_deja_marca(self):
+        self.baseline.write_text(BASELINE_VALIDO, encoding="utf-8")
+        self.editar(self.baseline)
+        self.assertFalse(self.pending.exists())
+
+    def test_otro_markdown_de_afuera_sigue_ignorado(self):
+        ajeno = self.baseline.parent / "otro.md"
+        ajeno.write_text(BASELINE_ROTO, encoding="utf-8")
+        self.editar(ajeno)
         self.assertFalse(self.pending.exists())
 
 

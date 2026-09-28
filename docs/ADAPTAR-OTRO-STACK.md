@@ -1,7 +1,7 @@
 # Adaptar el harness a otro stack
 
 El alcance v2 es **Jira** como tracker, **Jira, Confluence o Notion** como documentación y
-**Claude Code, Cursor o Antigravity** como runtime. Si tu equipo usa otras herramientas, esta guía
+**Claude Code, Cursor, Antigravity o Codex CLI** como runtime. Si tu equipo usa otras herramientas, esta guía
 te dice exactamente qué tocar y cuánto cuesta.
 
 ---
@@ -49,20 +49,22 @@ Qué implica:
 Esfuerzo: una tarde de trabajo con calma, skill por skill. El flujo (gate → casos → cierre) y los
 formatos de comentario quedan idénticos — eso es lo que compraste, y es portable.
 
-## Lo otro grande: un cuarto runtime (registrar un `--agent` nuevo)
+## Lo otro grande: un runtime nuevo (registrar un `--agent` nuevo)
 
-Los tres runtimes soportados (`claude`, `cursor`, `antigravity`) no están cableados en el método:
-son tres adaptadores más un nombre de agente que el instalador y el validador conocen. Sumar un
-cuarto es agregar el adaptador y **registrar su valor de `--agent` en los dos scripts**. Si lo
+Los cuatro runtimes soportados (`claude`, `cursor`, `antigravity`, `codex`) no están cableados en el
+método: son cuatro adaptadores más un nombre de agente que el instalador y el validador conocen.
+Sumar otro es agregar el adaptador y **registrar su valor de `--agent` en los dos scripts**. Si lo
 registras en uno solo, el harness se instala y nadie lo valida — o al revés.
 
-1. **Crea `adapters/<nuevo>/`** siguiendo el patrón de los tres existentes: un shim (`_<nuevo>.py`)
+1. **Crea `adapters/<nuevo>/`** siguiendo el patrón de los cuatro existentes: un shim (`_<nuevo>.py`)
    que pone `core/` en el `sys.path`, los tres gates que llaman a `core/gates/`, y la config que ese
    runtime lea. **La lógica de los gates no se duplica**: vive una sola vez en `core/gates/`, y el
    adaptador solo traduce el formato de entrada y salida de los hooks de esa herramienta.
 2. **Dale su archivo de reglas** y haz que **importe `AGENTS.md`**, como hacen
    `adapters/claude/CLAUDE.md` y `adapters/antigravity/GEMINI.md`. `AGENTS.md` es la fuente única:
-   no se copia, se importa.
+   no se copia, se importa. Si el runtime no tiene imports (Codex), no pegues el método: apunta a
+   `AGENTS.md` desde un bloque corto, como `adapters/codex/AGENTS.md`, y si el archivo de reglas es
+   del usuario, agrégalo entre marcas con `adapters/codex/bloque_gestionado.py` en vez de pisarlo.
 3. **Regístralo en `install.sh`:**
    - agrégalo a la variable `AGENTES` (es la lista que valida el valor de `--agent` y la que recorre
      `--agent all`);
@@ -77,9 +79,11 @@ registras en uno solo, el harness se instala y nadie lo valida — o al revés.
 5. **Usa la misma regla de identidad en los dos scripts.** El instalador tiene que poder reconocer
    lo suyo para reemplazarlo al reinstalar, y el validador tiene que reconocerlo igual para poder
    decir "esto es mío y está apuntando a otro clon". Si las dos reglas divergen, el validador miente.
-   Los tres precedentes: Cursor se identifica por el **nombre del script** del hook (no por la ruta,
+   Los cuatro precedentes: Cursor se identifica por el **nombre del script** del hook (no por la ruta,
    que cambia si mueves el repo), Antigravity por el **grupo `qa-harness-pro`** y un sidecar propio,
-   y Claude Code por la **forma del import** `@<algo>/AGENTS.md` y por los symlinks de `skills/`.
+   Claude Code por la **forma del import** `@<algo>/AGENTS.md` y por los symlinks de `skills/`, y
+   Codex por el **sufijo `adapters/codex/hooks/<script>`** del command, las **marcas** de sus bloques
+   gestionados y los symlinks de `skills/`.
 6. **Agrega tests.** `tests/test_*_hooks.py` para los gates del adaptador nuevo, y los asserts que
    correspondan en `tests/smoke.sh` para la instalación y la validación.
 

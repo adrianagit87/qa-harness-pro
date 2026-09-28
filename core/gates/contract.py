@@ -14,9 +14,20 @@ ABSTENERSE se proyecta distinto en cada runtime, y esa diferencia es real:
     lo proyecta como bloqueo, porque dejar pasar lo que no se sabe validar sería
     prometer un gate que no existe.
 
+    Una excepción, y es de significado, no de runtime: el post de la terminal
+    (`post_shell`) se abstiene cuando no tiene un antes confiable, y eso no se
+    distingue de "el comando no escribió nada". Frenar ahí frenaría cada `ls`
+    de la sesión; en todo runtime que lo usa, esa abstención es silencio.
+
   - Cursor y Antigravity corren sus hooks sobre TODA llamada a herramienta. Ahí
     abstenerse tiene que ser silencio: un default restrictivo frenaría al agente
     entero por cosas que no son asunto de este harness.
+
+  - Codex engancha por matcher, pero con matchers amplios (`mcp__.*` ve toda
+    llamada MCP, lecturas incluidas) y sus hooks son globales: corren en
+    cualquier proyecto. Ahí también abstenerse es silencio. Lo que sí falla
+    cerrado es la entrada ilegible, porque el matcher garantiza que la
+    herramienta es una que el gate gobierna.
 """
 
 from __future__ import annotations

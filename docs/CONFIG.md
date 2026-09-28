@@ -13,7 +13,7 @@ campo (tracker completo + el bloque del backend de docs que uses) y placeholders
 El bloque del backend que NO uses puede quedar tal cual vino en el template: el validador lo ignora.
 
 Así, pelado, valida además cada runtime que encuentre instalado. Con `--agent` eliges cuál mirar:
-`./validate-config.sh --agent <claude|cursor|antigravity|all>` — los mismos valores que el
+`./validate-config.sh --agent <claude|cursor|antigravity|codex|all>` — los mismos valores que el
 instalador, y `--help` te los lista. La diferencia es que ahí le estás afirmando que ese runtime
 está instalado, así que no encontrarlo pasa a ser un error en vez de un silencio.
 
@@ -29,6 +29,10 @@ No valida solo formato, valida **contenido**:
 - `.claude/settings.json` debe seguir prometiendo la seguridad del harness: `permissions.allow/ask/deny`
   como **listas de strings** (otro formato lo ignora Claude Code), `transitionJiraIssue`
   en `deny` y todas las escrituras externas (Jira/Confluence/Notion) en `ask` o `deny`.
+- El bloque opcional `baseline` se valida solo si existe y tiene `enabled: true`: ruta `.md`
+  (relativa, absoluta o con `~`; si el archivo ya existe, con la marca del baseline en su primera
+  línea; si su carpeta no existe, un aviso),
+  módulos con código válido y sin repetir, espejo `none`/`notion`/`confluence` con `pageId`.
 - `.mcp.json` debe declarar el server `atlassian` oficial (y `notion` si tu backend es notion).
 - Las skills deben estar enlazadas con symlinks que **resuelven a este repo** — un symlink roto o
   apuntando a otro lado no cuenta como enlazada.
@@ -150,6 +154,37 @@ especificación completa.
 | `framework`     | Tu framework de tests (ej. `"Playwright + TS"`)    |
 | `workspacePath` | Ruta local a tu suite de automatización            |
 | `subprojects`   | Sub-proyectos de tu suite (nombre / servicio / url) |
+
+### `baseline` — opcional, el baseline del proyecto
+
+Una base de conocimiento que se llena sola, ticket a ticket: cada vez que un ticket se aprueba en
+el ambiente `final: true`, la skill `qa-baseline` te propone agregar las reglas que verificaron sus
+casos ✅ Pass. Detalle del flujo y del formato en `skills/qa-baseline/SKILL.md` y
+`templates/09-baseline.md`.
+
+**Apagado por defecto.** Si el bloque no existe, o `enabled` no es `true`, la función no hace
+nada: los cierres y el análisis se comportan exactamente como sin ella, y el validador no revisa
+el resto del bloque.
+
+| Campo            | Qué es                                                                                  | Ejemplo |
+| ---------------- | --------------------------------------------------------------------------------------- | ------- |
+| `enabled`        | `true` la enciende. `false` (lo que trae el template) o bloque ausente = apagada          | `true`  |
+| `path`           | Ruta del baseline, terminada en `.md`: **cualquier ruta** — relativa (a la raíz de este repo), absoluta o con `~`. Es la fuente única | `"baseline/baseline.md"`, `"~/qa/acme-baseline.md"` |
+| `modules`        | Módulos del producto: `code` (mayúsculas y guiones, prefija los IDs de regla) y `name`   | `[{"code": "VEN-PED", "name": "Ventas › Pedidos"}]` |
+| `mirror.backend` | Espejo de solo publicación: `"none"`, `"notion"` o `"confluence"`                         | `"none"` |
+| `mirror.pageId`  | La página que el espejo sobrescribe (obligatorio si `backend` no es `none`)              | `"123456"` |
+
+- **Cualquier ruta sirve, y el gate la sigue.** El gate post-edición valida el baseline en cada
+  escritura aunque esté fuera del proyecto: reconoce la ruta configurada de la empresa activa
+  (solo ese archivo exacto; el resto de lo que está fuera del proyecto sigue sin revisarse). Si
+  la carpeta todavía no existe, el validador avisa. La ruta por defecto, `baseline/`, está en
+  `.gitignore`: el baseline describe TU producto, igual que `companies/*.json`, y no se versiona
+  con el harness. Si trabajas con varias empresas, usa una ruta por empresa.
+- **`modules` puede arrancar vacío.** Al consolidar, el agente te propone el módulo del ticket y
+  pregunta; nunca inventa uno en silencio.
+- **El espejo nunca se lee de vuelta.** Crea tú la página vacía en Notion o Confluence y pega su
+  ID en `pageId`; cada consolidación la reemplaza entera con el contenido del `.md`, pasando por
+  el mismo gate de publicación que el resto.
 
 ---
 

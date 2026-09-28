@@ -1,14 +1,16 @@
 """Catálogo único de las herramientas externas que el harness gobierna.
 
-Los tres runtimes nombran la misma herramienta de formas distintas
+Los runtimes nombran la misma herramienta de formas distintas
 (`mcp__atlassian__createJiraIssue`, `atlassian.createJiraIssue`,
 `atlassian_create_jira_issue`) y el naming de las tools MCP en Antigravity ni
-siquiera está documentado. Por eso cada entrada se reconoce por patrón y se
+siquiera está documentado. Codex usa la misma forma que Claude Code
+(`mcp__<server>__<tool>`), así que ahí el id canónico coincide tal cual. Por eso cada entrada se reconoce por patrón y se
 responde con un id canónico: el nombre que usa Claude Code, que es el que viaja
 a `.claude/settings.json` y a `validate-config.sh`.
 
-Esta es la fuente de verdad. Agregar una herramienta acá la habilita en los tres
-runtimes, y `tests/test_core_catalogo.py` falla si la configuración se desfasa.
+Esta es la fuente de verdad. Agregar una herramienta acá la habilita en todos los
+runtimes, y `tests/test_core_catalogo.py` (y, para Codex, `tests/test_codex_hooks.py`)
+falla si la configuración se desfasa.
 """
 
 from __future__ import annotations

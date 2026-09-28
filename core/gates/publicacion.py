@@ -103,8 +103,9 @@ def revisar_transicion(herramienta: Any) -> contract.Verdict:
     """Regla aparte porque no todos los runtimes la consultan.
 
     En Claude Code la prohibición vive en `permissions.deny` de
-    `.claude/settings.json`, así que el hook nunca ve estas llamadas. Cursor y
-    Antigravity no tienen ese allowlist: sus adaptadores preguntan acá primero.
+    `.claude/settings.json`, así que el hook nunca ve estas llamadas. Cursor,
+    Antigravity y Codex no tienen ese allowlist: sus adaptadores preguntan acá
+    primero (Codex, además, saca la tool de la lista con `disabled_tools`).
     """
     if es_transicion(herramienta):
         return contract.bloquear(MOTIVO_TRANSICION)

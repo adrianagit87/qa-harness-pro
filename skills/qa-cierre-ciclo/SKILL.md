@@ -43,18 +43,7 @@ Si la config no está disponible o le falta un valor → **avisa antes de operar
 
 1. Toma el ambiente del trigger del usuario (`Cierre STG US-1234` → `STG`). Si no lo nombró, usa `environments.default`.
 2. Busca ese `key` en `environments.list`. **Si no existe → DETENTE** y muestra los `key` válidos. No inventes un ambiente ni caigas al default en silencio: cerrar un ciclo declarando un ambiente equivocado es exactamente el humo que este harness existe para evitar.
-3. De ese ambiente salen, para todo el resto del flujo:
-
-| Campo | Se usa en |
-|---|---|
-| `key` | Trigger, encabezados, `## Cierre [key]`, título `✅ APROBADO VALIDADO EN [key]` |
-| `label` | Línea `CIERRE DE PRUEBAS — AMBIENTE [label]` del comentario Jira |
-| `emoji` | Prefijo del comentario y de la sección en la doc |
-| `final` | `true` = no hay ambiente siguiente; cambia la etiqueta de aprobación y el título de la página |
-| `tone` | `técnico` o `formal` — registro de redacción del comentario |
-| `separateClosurePage` | `true` = además crea una página de cierre separada (Paso 4.3) |
-
-> **Config de un solo ambiente.** Si `environments.list` tiene un único ambiente marcado `final: true` (ej. solo `STG`), ese ambiente es a la vez el de prueba y el de validación final: aplica el tratamiento de `final` sin buscar un ambiente previo, y [[qa-cierre-prod]] NO se usa.
+3. **Antes de ejecutar este paso, leé `references/resolucion-ambiente.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): qué campo del ambiente se usa en cada parte del flujo, y el caso de un solo ambiente.
 
 ## Reglas críticas (NO romper)
 
@@ -70,16 +59,7 @@ Si la config no está disponible o le falta un valor → **avisa antes de operar
 
 ### Paso 1 — Leer casos desde la doc
 
-Según `docs.backend`:
-
-- **jira:** localiza el ticket de QA contenedor con `searchJiraIssuesUsingJql`
-  (`project = {docs.jira.qaProject} AND issuetype = {containerIssueType} AND summary ~ "{TICKET-ID}"`),
-  y luego lee **sus issues hijos** — los CP — con `parent = {QA-TICKET}`. De cada hijo tomás la key,
-  el `CP_ID` y el título del summary. Ese es tu listado de casos: **no lo reconstruyas de memoria ni
-  del análisis original.** Si un CP fue agregado o borrado a mano después del análisis, la verdad
-  está en los hijos, no en el plan.
-- **confluence:** busca con `searchConfluenceUsingCql` (`title ~ "[TICKET-ID] QA Analysis"` en `docs.confluence.spaceKey`) → `getConfluencePage` y extrae la tabla de casos (ID, Título, Prioridad, Tipo).
-- **notion:** busca con `notion-search`, query `[TICKET-ID] QA Analysis`, `query_type: internal` → `notion-fetch` y extrae la tabla de casos.
+**Antes de ejecutar este paso, leé `references/lectura-casos.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está cómo leer los casos en cada backend.
 
 **Criterio de búsqueda (no romper) — "cero resultados" NO es lo mismo que "búsqueda fallida":**
 
@@ -132,26 +112,7 @@ encabezado, métricas, tabla de casos, bugs, observaciones y las líneas de `�
 con la variante de aprobación según el ambiente sea `final: false` o `final: true`. No improvises
 el formato ni reordenes las secciones.
 
-**Cómo se calculan las métricas (no improvises los denominadores):**
-
-- **Ejecutados = Pass + Fail.** Un caso Bloqueado o No ejecutado NO cuenta como ejecutado.
-- **Cobertura de ejecución = ejecutados / planificados.** No es solo informativa: la aprobación
-  exige cobertura del 100% del alcance comprometido, o una excepción explícita registrada.
-- **Pass Rate = Pass / ejecutados.** Si ejecutados = 0, el Pass Rate es N/A — y el ciclo no se aprueba.
-- **Criterio de aprobación:** si existe algún caso de prioridad 🔴 crítica en Fail, Bloqueado o
-  No ejecutado, el ciclo NO se aprueba — sin importar el Pass Rate. Con eso limpio, aplica el
-  umbral: Pass Rate ≥ 80% (calculado sobre ejecutados), sin bugs abiertos y cobertura de
-  ejecución del 100% del alcance comprometido.
-- **Excepción de alcance (la única salida al 100% de cobertura):** si el usuario decide cerrar
-  con cobertura menor, debe declararlo explícitamente, y el comentario de cierre lo registra como
-  `⚠️ Alcance reducido aceptado por [nombre]: [motivo]` en `📋 OBSERVACIONES` — nunca de forma
-  silenciosa. Mismo espíritu que la regla de resultados del Paso 2: el silencio o un "cierra
-  nomás" NO cuentan como excepción. Sin excepción declarada y con cobertura < 100%, el estado del
-  ciclo es ⚠️ REQUIERE CORRECCIONES ANTES DE AVANZAR, no aprobado. Y la excepción NO sustituye el
-  veto de críticos: un caso 🔴 en Fail, Bloqueado o No ejecutado veta la aprobación aunque haya
-  excepción firmada.
-- ¿Por qué la cobertura? Porque un Pass Rate sobre ejecutados puede dar 100% con la mitad de la
-  suite sin correr. La cobertura deja ese hueco a la vista.
+**Antes de ejecutar este paso, leé `references/metricas-aprobacion.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el cálculo de las métricas y el criterio de aprobación, con la única excepción de alcance.
 
 ### Paso 4 — Publicar (tras aprobación)
 
@@ -172,47 +133,18 @@ lo encontrás, pedí la ruta del harness antes de improvisar el formato.
 - A los CP marcados `⏸️ No ejecutado` **no les publiques comentario de ejecución** — no se ejecutaron.
 - **Nunca** uses `transitionJiraIssue` para pasar los CP a Finalizada. Está en `deny`; lo hace el usuario.
 - El comentario agregado del ciclo va sobre el **contenedor**, no sobre cada CP.
-2. **Doc — registra el cierre del ciclo:**
-
-   - **jira:** `addCommentToJiraIssue` sobre el **ticket de QA contenedor** con el comentario de
-     cierre completo. Si el cierre aprueba, `editJiraIssue` sobre el contenedor para prefijar su
-     summary igual que un título de página: `✅ APROBADO` (ambiente `final: false`) o
-     `✅ APROBADO VALIDADO EN [AMBIENTE]` (ambiente `final: true`). No toques la descripción: ahí
-     vive el análisis de Fase 1 y se conserva como quedó.
-   - **confluence / notion — agrega la sección `## [emoji] Cierre [AMBIENTE]` al final de la página existente:**
-   - **confluence:** `getConfluencePage` primero, luego `updateConfluencePage` agregando la sección al final.
-   - **notion:** `notion-fetch` primero (Notion renderiza URLs como `[url](url)`), luego `notion-update-page` con `insert_content` (position: end).
-   - Si el cierre aprueba, renombra el título: prefijo `✅ APROBADO` si el ambiente tiene `final: false`, o `✅ APROBADO VALIDADO EN [AMBIENTE]` si tiene `final: true`. En Notion el renombrado va por `update_properties`.
-
-3. **Doc — página de cierre separada (SOLO si el ambiente tiene `separateClosurePage: true`):**
-   - **confluence:** `createConfluencePage` bajo `docs.confluence.parentPageId`.
-   - **notion:** `notion-create-pages` bajo `docs.notion.parents.casos`.
-   - Título: `[TICKET-ID] - Cierre [AMBIENTE] - [YYYY-MM-DD]`
-   - Contenido: comentario completo + tabla de resultados + link a la página de análisis original.
-   - Con `separateClosurePage: false` este paso se omite: una sola página por ticket.
+2. **Doc — registra el cierre del ciclo** (y, si el ambiente tiene `separateClosurePage: true`, la página de cierre separada). **Antes de ejecutar este paso, leé `references/publicacion-doc.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el procedimiento por backend, el renombrado del título y la convención de naming de la página.
 
 ### Paso 5 — Respuesta al usuario (corta)
 
-```
-╔══════════════════════════════════════════════════╗
-║  ✅ CIERRE [AMBIENTE] REGISTRADO — [TICKET-ID]   ║
-╚══════════════════════════════════════════════════╝
+**Antes de ejecutar este paso, leé `references/respuesta-final.md`** (en la carpeta de esta skill: `skills/qa-cierre-ciclo/references/`, ruta relativa a la raíz del repo del harness): ahí está el formato literal.
 
-📊 Pass Rate: [X]% ([n] Pass de [n] ejecutados) · Cobertura: [X]% ([n] de [N] planificados)
-🐛 Bugs: [n encontrados / ninguno]
-📈 Estado: ✅ Aprobado / ⚠️ Requiere correcciones
+### Paso 6 — Baseline (solo si aplica)
 
-💬 Comentario publicado en Jira ✅
-📝 Documentación actualizada ✅
-```
-
-## Convención de naming de la página de doc
-
-`[STATUS_EMOJI] [TICKET_ID] - QA Analysis - [YYYY-MM-DD]`
-
-Progresión de emoji: `⚠️` (en progreso) → `✅ APROBADO` (aprobado en un ambiente con `final: false`) → `✅ APROBADO VALIDADO EN [AMBIENTE]` (aprobado en el ambiente con `final: true`).
-
-Con un solo ambiente `final: true` la progresión es directa. Por ejemplo, con solo `STG`: `⚠️` → `✅ APROBADO VALIDADO EN STG`.
+Si `baseline.enabled` es `true` **y** el ambiente tiene `final: true` **y** el cierre quedó
+`✅ FUNCIONALIDAD APROBADA` (ya publicado), carga [[qa-baseline]] en modo **CONSOLIDAR**. Si falta
+cualquiera de las tres, omite este paso sin mencionarlo. El camino Jira-only no consolida: la
+skill lo avisa.
 
 ## Persistencia (opcional)
 

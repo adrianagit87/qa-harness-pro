@@ -24,6 +24,9 @@ def main() -> int:
     if payload is None:
         denegar("entrada inválida")
         return 0
+    if _claude.lo_invoca_cursor(payload):
+        _claude.ceder_a_cursor()
+        return 0
 
     if payload.get("tool_name") != "Bash":
         denegar("herramienta inesperada")

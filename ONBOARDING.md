@@ -74,13 +74,14 @@ Hay un solo instalador y elegís la herramienta con `--agent`:
 | Claude Code | `./install.sh --agent claude` |
 | Cursor | `./install.sh --agent cursor` |
 | Antigravity | `./install.sh --agent antigravity` |
-| Las tres | `./install.sh --agent all` |
+| Codex CLI | `./install.sh --agent codex` (y después `/hooks` en Codex: es obligatorio) |
+| Las cuatro | `./install.sh --agent all` |
 
 `--agent` es obligatorio: `./install.sh` a secas imprime la ayuda y sale con error, para que nadie
 crea que instaló algo que no instaló. `./install.sh --help` te lista los valores.
 
 Podés instalar más de una: corré el comando una vez por herramienta, o usá `--agent all` para las
-tres de una. Comparten las mismas skills y la misma config.
+cuatro de una. Comparten las mismas skills y la misma config.
 
 ## 5. Verificá
 
@@ -94,13 +95,13 @@ El 🟡 no es una falla. Significa "usable, con avisos", y hay dos avisos que va
 hecho todo bien:
 
 - **Si no instalaste Claude Code.** El validador revisa `claude` **siempre** —`.mcp.json` y
-  `.claude/settings.json` viajan versionados en este repo— así que instalando solo Cursor o solo
-  Antigravity te va a avisar que falta `~/.claude/CLAUDE.md` y que no hay skills enlazadas. Son
+  `.claude/settings.json` viajan versionados en este repo— así que instalando solo Cursor, solo
+  Antigravity o solo Codex te va a avisar que falta `~/.claude/CLAUDE.md` y que no hay skills enlazadas. Son
   avisos de algo que no instalaste.
 - **Si dejaste `automation` sin completar** (paso 2). También es un aviso, no un error.
 
-Pasarle tu runtime (`--agent claude`, `--agent cursor`, `--agent antigravity` o `--agent all`) saca
-del medio los avisos de los otros dos, pero no los de tu config: el 🟢 recién aparece cuando no
+Pasarle tu runtime (`--agent claude`, `--agent cursor`, `--agent antigravity`, `--agent codex` o
+`--agent all`) saca del medio los avisos de los otros, pero no los de tu config: el 🟢 recién aparece cuando no
 queda ningún aviso pendiente.
 
 ## 6. Reiniciá la herramienta y abrila en la raíz del repo
@@ -157,7 +158,7 @@ El ticket de demo está incompleto a propósito. Deberías ver un gate ⚠️ co
 cd ~/Documents/qa-harness-pro
 git pull ~/Downloads/qa-harness-pro.bundle main
 cp ~/Downloads/acme.json companies/acme.json     # la config también cambia
-./install.sh --agent cursor                      # o claude / antigravity / all, según lo tuyo
+./install.sh --agent cursor                      # o claude / antigravity / codex / all, según lo tuyo
 ```
 
 Tu `profile/profile.json` no se toca: está en `.gitignore` y no viaja en el bundle.

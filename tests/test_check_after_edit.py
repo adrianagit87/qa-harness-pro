@@ -6,9 +6,13 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from harness_temporal import BASELINE_ROTO, BASELINE_VALIDO, copiar_harness, escribir_config  # noqa: E402
 
 
 HOOK = Path(__file__).resolve().parents[1] / "adapters" / "claude" / "hooks" / "check-after-edit.py"
@@ -92,6 +96,45 @@ class PostEditGateTests(unittest.TestCase):
         # La contraparte silenciosa está en test_cursor_hooks y test_antigravity_hooks.
         with tempfile.NamedTemporaryFile(suffix=".py") as external:
             self.assert_blocked(self.run_hook(Path(external.name)), "fuera de la raíz")
+
+
+class BaselineConfiguradoFueraDelProyecto(unittest.TestCase):
+    """La excepción angosta al bloqueo por archivo externo: solo el baseline configurado."""
+
+    def setUp(self) -> None:
+        dirs = [tempfile.TemporaryDirectory() for _ in range(3)]
+        for temporal in dirs:
+            self.addCleanup(temporal.cleanup)
+        harness, self.proyecto, afuera = (Path(d.name) for d in dirs)
+        self.hook = copiar_harness(harness, "claude") / "check-after-edit.py"
+        self.baseline = afuera / "baseline.md"
+        escribir_config(harness, {"enabled": True, "path": str(self.baseline)})
+
+    def run_hook(self, path: Path) -> dict | None:
+        raw = json.dumps({"tool_name": "Write", "tool_input": {"file_path": str(path)}})
+        result = subprocess.run(
+            ["python3", "-B", str(self.hook)], input=raw, text=True, capture_output=True,
+            check=False, env={**os.environ, "CLAUDE_PROJECT_DIR": str(self.proyecto)},
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return json.loads(result.stdout) if result.stdout.strip() else None
+
+    def test_el_baseline_valido_pasa_aunque_este_fuera_del_proyecto(self) -> None:
+        self.baseline.write_text(BASELINE_VALIDO, encoding="utf-8")
+        self.assertIsNone(self.run_hook(self.baseline))
+
+    def test_el_baseline_roto_bloquea_con_el_motivo_del_baseline(self) -> None:
+        self.baseline.write_text(BASELINE_ROTO, encoding="utf-8")
+        salida = self.run_hook(self.baseline)
+        self.assertEqual(salida["decision"], "block")
+        self.assertIn("baseline inválido", salida["reason"])
+
+    def test_otro_archivo_externo_sigue_frenado_como_siempre(self) -> None:
+        ajeno = self.baseline.parent / "otro.md"
+        ajeno.write_text("texto\n", encoding="utf-8")
+        salida = self.run_hook(ajeno)
+        self.assertEqual(salida["decision"], "block")
+        self.assertIn("fuera de la raíz", salida["reason"])
 
 
 if __name__ == "__main__":
