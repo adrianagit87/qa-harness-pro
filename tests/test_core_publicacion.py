@@ -73,7 +73,7 @@ class RevisarPublicacion(unittest.TestCase):
             {"pages": [{"content": "TODO: completar resultados"}]},
             {"pages": [{"content": "Responsable {{ nombre }}"}]},
             {"pages": [{"content": "https://tuempresa.atlassian.net"}]},
-            {"pages": [{"content": "Poné el id en PON-AQUI"}]},
+            {"pages": [{"content": "Pon el id en PON-AQUI"}]},
             {"pages": [{"content": "Token YOUR_API_KEY sin resolver"}]},
         )
         for payload in casos:

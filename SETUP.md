@@ -208,15 +208,16 @@ Dos diferencias respecto a Claude Code, explicadas en detalle en
 ### 5c. Antigravity (Gemini)
 
 ```bash
-.Fusiona hooks y servers MCP en `~/.gemini/config/` sin pisar lo que ya tengas (backup con
+./install.sh --agent antigravity
+```
+
+Fusiona hooks y servers MCP en `~/.gemini/config/` sin pisar lo que ya tengas (backup con
 timestamp) y **copia** cada skill en `~/.gemini/config/skills/`, la carpeta global de donde
 Antigravity lee las skills (a través de un symlink no puede: su política de workspace se lo niega).
-La fuente es la misma `skills/` de este repo, pero la copia es una foto: **si editás una skill,
-volvé a correr `./install.sh --agent antigravity`**; `./validate-config.sh` avisa si alguna copia
+La fuente es la misma `skills/` de este repo, pero la copia es una foto: **si editas una skill,
+vuelve a correr `./install.sh --agent antigravity`**; `./validate-config.sh` avisa si alguna copia
 quedó desactualizada. Lo ajeno que ya haya en esa carpeta no se toca (ver
 `adapters/antigravity/README.md`, *Cómo llegan las skills*, con la prueba en vivo).
-
-as skills*, con la prueba en vivo).
 
 Y sincroniza la rule en `.agents/rules/qa-harness.md` **dentro de este repo**: igual que Cursor,
 Antigravity lee las reglas del workspace, no de tu HOME. Por eso hay que abrir Antigravity en la
@@ -226,10 +227,10 @@ para fijar el modo de activación desde el archivo no está documentada, así qu
 adivina.
 
 Deja además un archivo propio en tu HOME: `~/.gemini/qa-harness-state.json` (puedes cambiar la ruta
-con la variable `QA_HARNESS_STATE`). Ahí el harness anota qué ruta de skills registró, para poder
-retirar **esa misma** entrada cuando reinstales desde otro lugar en vez de dejar dos. Es el cuarto
-archivo que una instalación de Antigravity deja fuera del repo, junto con los tres de
-`~/.gemini/config/`.
+con la variable `QA_HARNESS_STATE`). Ahí el harness anota de qué `skills/` copió y qué copias dejó,
+para poder reemplazar o retirar **esas mismas** cuando reinstales desde otro lugar en vez de dejar
+dos. Es lo único que una instalación de Antigravity deja fuera del repo, además de `hooks.json`,
+`mcp_config.json` y las copias de las skills en `~/.gemini/config/`.
 
 Después: reinicia Antigravity y autentica el MCP de Atlassian.
 
@@ -276,8 +277,8 @@ suyo, con backup con timestamp de cada archivo que cambia:
   Tu contenido queda intacto.
 - **Skills**: un symlink por skill en `~/.agents/skills`, donde Codex las lee de forma nativa.
 
-Después, **un paso que no se puede saltar**: abre Codex, corre `/hooks` y confía en los tres hooks
-del harness. Codex no corre un hook que no aprobaste, y no avisa: sin ese paso no hay gate. Luego
+Después, **un paso que no se puede saltar**: abre Codex, corre `/hooks` y confía en los cinco hooks
+del harness (uno por gate, más el par que revisa lo que se escribe por la terminal). Codex no corre un hook que no aprobaste, y no avisa: sin ese paso no hay gate. Luego
 `codex mcp login atlassian` y abre Codex **en la raíz de este repo**.
 
 Dos diferencias, explicadas en detalle en [`adapters/codex/README.md`](./adapters/codex/README.md),

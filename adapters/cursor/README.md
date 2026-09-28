@@ -11,7 +11,7 @@ Cursor soporta MCP, hooks y rules, así que el harness funciona casi completo.
 Es el instalador único del harness, desde la raíz del repo: ya no hay un script por herramienta.
 
 Fusiona en `~/.cursor/` sin pisar lo que ya tengas (backup con timestamp de todo lo que toca).
-Después: reiniciá Cursor, autenticá el MCP de Atlassian, y **abrí Cursor en la raíz de este repo**.
+Después: reinicia Cursor, autentica el MCP de Atlassian, y **abre Cursor en la raíz de este repo**.
 
 ## Equivalencias
 
@@ -45,7 +45,7 @@ postToolUseFailure    in : lo mismo + "error_message","failure_type"
 ```
 
 Es el port más cercano a Claude Code de los tres: hasta los nombres `tool_name` y `tool_input`
-coinciden. La única trampa es que `tool_input` llega serializado como string — si no lo desanidás,
+coinciden. La única trampa es que `tool_input` llega serializado como string — si no lo desanidas,
 el gate no encuentra contenido y bloquea payloads perfectamente válidos. Hay un test para eso.
 
 ## Las tres diferencias que importan
@@ -60,7 +60,7 @@ publicar está completo**. Un payload con un placeholder sin resolver se bloquea
 la aprobación normal de Cursor.
 
 > Al configurar el MCP de Atlassian, **no marques las herramientas de escritura como
-> "siempre permitir"**. Si lo hacés, perdés la confirmación y el hook queda como única defensa.
+> "siempre permitir"**. Si lo haces, pierdes la confirmación y el hook queda como única defensa.
 
 ### 2. El gate post-edit llega en el próximo comando
 
@@ -96,9 +96,9 @@ el check se abstiene en silencio: nunca valida el repo entero a ciegas.
 del bundle de Cursor 3.21.9 (`extensions/cursor-agent-exec/dist/main.js`): `preToolUse` y
 `postToolUse` mandan el mismo `toolCallId` como `tool_use_id`, el `matcher` se evalúa como regex
 contra `tool_name`, y el nombre de la terminal es `Shell`. Lo que **todavía no está probado** es
-una sesión real de punta a punta. Para verificarlo: pedile al agente que escriba por la terminal
-un JSON roto (`printf '{"a": }' > zz-prueba.json`) y fijate que en el mismo turno diga que falló
-JSON. Después borrá el archivo.
+una sesión real de punta a punta. Para verificarlo: pídele al agente que escriba por la terminal
+un JSON roto (`printf '{"a": }' > zz-prueba.json`) y fíjate que en el mismo turno diga que falló
+JSON. Después borra el archivo.
 
 ## Si Cursor carga los hooks de Claude Code
 
@@ -136,20 +136,20 @@ stdin, que termina con exit 1 (`NameError: name 'null' is not defined`): Cursor 
 fallido y no bloquea. El paso al costado es para cuando eso cambie — una versión que respete `args`,
 o hooks copiados a mano con la ruta dentro de `command` (por ejemplo en tu `~/.claude/settings.json`).
 
-Si no usás plugins ni skills de otras herramientas en Cursor, lo más limpio es **apagar ese
+Si no usas plugins ni skills de otras herramientas en Cursor, lo más limpio es **apagar ese
 toggle**: Cursor deja de cargar los hooks de `.claude/` y en sus logs de hooks desaparecen esos `python3` fallidos.
 No lo detectamos desde `validate-config.sh`: vive en la base de estado interna de Cursor, no en un
 archivo de config.
 
-## Verificá que el gate muerde
+## Verifica que el gate muerde
 
-Primero, que las reglas te lleguen: escribí `PING-HARNESS` en un chat nuevo. Debe responder
+Primero, que las reglas te lleguen: escribe `PING-HARNESS` en un chat nuevo. Debe responder
 `PONG <empresa> <backend> <destino>` y nada más — el destino sale del backend que tengas
 configurado. Si contesta otra cosa, la rule no cargó — y el
 análisis va a salir igual, sin las reglas. Es la falla que no se ve.
 
-Después, que el gate muerda: pedile que publique un comentario en Jira que contenga `PON-AQUI-EL-ID`.
-**Debe bloquearlo.** Si lo publica, el hook no está enganchando: revisá que `~/.cursor/hooks.json`
+Después, que el gate muerda: pídele que publique un comentario en Jira que contenga `PON-AQUI-EL-ID`.
+**Debe bloquearlo.** Si lo publica, el hook no está enganchando: revisa que `~/.cursor/hooks.json`
 tenga el grupo con las rutas correctas y que Cursor se haya reiniciado.
 
 Un gate desconectado no avisa que lo está. Simplemente deja pasar todo.

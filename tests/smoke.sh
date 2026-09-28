@@ -1594,7 +1594,7 @@ assert_not_contains "validate: sin cambios en el repo no hay copias desactualiza
 # Deriva: editar una skill en el repo deja la copia vieja, y el validador lo dice.
 echo "línea nueva del método" >> "$R54/skills/qa-analisis-ticket/SKILL.md"
 RC="$(run_validate_en "$R54" "$C54" "$TMP_ROOT/sin-cursor" "$H54/.gemini" "$TMP_ROOT/out-v54c.txt" --agent antigravity)"
-assert_contains "validate: detecta la copia desactualizada" "copia desactualizada: corré ./install.sh --agent antigravity" "$TMP_ROOT/out-v54c.txt"
+assert_contains "validate: detecta la copia desactualizada" "copia desactualizada: corre ./install.sh --agent antigravity" "$TMP_ROOT/out-v54c.txt"
 assert_contains "validate: nombra la skill desactualizada" "skill 'qa-analisis-ticket'" "$TMP_ROOT/out-v54c.txt"
 # Espejo exacto: un archivo borrado en el repo desaparece de la copia; uno nuevo aparece.
 rm "$R54/skills/qa-analisis-ticket/references/respuesta-final.md"

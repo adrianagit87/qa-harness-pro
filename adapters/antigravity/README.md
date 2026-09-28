@@ -28,7 +28,7 @@ nuestra marca o un symlink que apunta a otro lado, **avisa y la saltea**. Solo r
 probar que es suyo: carpetas con la marca, y los symlinks que dejaba la versión anterior del
 instalador (los que apuntan a `skills/<nombre>` de este repo, del clon que anotó el sidecar aunque
 ya no exista, o de otro clon del harness). Dentro de una copia nuestra el espejo es exacto: lo que
-borrás en el repo desaparece de la copia, y una skill que sale del repo se retira. La copia nueva se
+borras en el repo desaparece de la copia, y una skill que sale del repo se retira. La copia nueva se
 arma aparte y recién después reemplaza a la vieja: nunca queda una a medias. La lógica vive en
 `adapters/antigravity/copias_skills.py`.
 
@@ -37,13 +37,13 @@ nada como nuestro sin meterle campos inventados a tu config. Anotamos aparte **q
 la última vez y qué skills copió**; con eso se reconocen los restos de un clon mudado y la entrada
 vieja de `skills.json` que dejaban las versiones anteriores del instalador, que ahora se retira
 (solo esa: tus otras entradas no se tocan, y si no hay nada nuestro el archivo ni se reescribe).
-Podés mover el sidecar con la variable `QA_HARNESS_STATE`.
+Puedes mover el sidecar con la variable `QA_HARNESS_STATE`.
 
 ## Qué se comparte con Claude Code
 
 **Las skills son las mismas, pero en Antigravity van copiadas.** La fuente es el `skills/` de este
-repo, el mismo que Claude Code y Codex usan por symlink. La diferencia: si editás una skill, Claude
-Code y Codex la ven al instante, y Antigravity **recién cuando reinstalás** (`./install.sh --agent
+repo, el mismo que Claude Code y Codex usan por symlink. La diferencia: si editas una skill, Claude
+Code y Codex la ven al instante, y Antigravity **recién cuando reinstalas** (`./install.sh --agent
 antigravity`). Ver [El costo de copiar](#el-costo-de-copiar-copias-viejas).
 
 Lo mismo con `companies/*.json` y `profile/profile.json`: son archivos, los lee cualquiera.
@@ -93,11 +93,11 @@ contenido descubierto por dos caminos tiende a listar cada skill dos veces. La e
 
 ### El costo de copiar: copias viejas
 
-Una copia es una foto: si editás `skills/` y no reinstalás, Antigravity sigue leyendo la versión
+Una copia es una foto: si editas `skills/` y no reinstalas, Antigravity sigue leyendo la versión
 anterior, y no avisa. Cómo se detecta:
 
 - **`./validate-config.sh --agent antigravity`** compara el contenido de cada copia con el de su
-  skill en el repo (hash de todo el árbol, sin la marca) y avisa *"copia desactualizada: corré
+  skill en el repo (hash de todo el árbol, sin la marca) y avisa *"copia desactualizada: corre
   ./install.sh --agent antigravity"*. También avisa si una copia vino de otro clon, si falta, o si
   en su lugar hay un symlink o una carpeta ajena.
 - **Reinstalar es la reparación**, y es barato: lo que ya está al día no se reescribe.
@@ -115,25 +115,25 @@ barato ni silencioso; el validador sí.
 Después de reinstalar y reiniciar Antigravity, en un **chat nuevo abierto fuera del repo del
 harness**:
 
-> Cargá la skill qa-analisis-ticket usando tu mecanismo de skills, sin buscar en el disco… ¿qué ruta
-> te indica? leé references/publicacion-jira.md relativo a esa carpeta y citame su primera línea
+> Carga la skill qa-analisis-ticket usando tu mecanismo de skills, sin buscar en el disco… ¿qué ruta
+> te indica? lee references/publicacion-jira.md relativo a esa carpeta y cítame su primera línea
 
 Esperado: la ruta es `~/.gemini/config/skills/qa-analisis-ticket` (no la del repo: ya no hay
 symlink que resolver), lee el archivo **sin** "Permission denied" y cita su primera línea, que
-empieza con `# Publicación con`. Si no la encuentra, si corre `find` o si la lectura falla, avisá:
+empieza con `# Publicación con`. Si no la encuentra, si corre `find` o si la lectura falla, avisa:
 el mecanismo hay que revisarlo.
 
 ### Dos trampas fuera del harness
 
 - **Copias viejas del método en tu HOME.** Un agente que cae a buscar por el disco agarra la primera
   que encuentra, y puede ser una copia vieja (una carpeta en el Escritorio, un clon de prueba) con
-  reglas y referencias desactualizadas. Si tenés copias que ya no usás, borralas o sacalas de tu HOME.
+  reglas y referencias desactualizadas. Si tienes copias que ya no usas, bórralas o sácalas de tu HOME.
   `./validate-config.sh --agent antigravity` avisa si en `~/.gemini/config/skills/` hay una carpeta
   con el nombre de una skill del harness que no es copia nuestra (el instalador no la pisa).
 - **El `AGENTS.md` de otros proyectos.** Algunos repos le dicen a Antigravity que sus skills viven en
-  `.agent/skills/` (la ruta legacy). Si abrís uno de esos, el agente puede buscar las del harness ahí,
+  `.agent/skills/` (la ruta legacy). Si abres uno de esos, el agente puede buscar las del harness ahí,
   no encontrarlas y caer a buscar por el disco. No es algo que el harness pueda arreglar desde acá:
-  si pasa, pedile explícitamente que use su mecanismo de skills.
+  si pasa, pídele explícitamente que use su mecanismo de skills.
 
 ## Cómo llegan las reglas
 
@@ -148,7 +148,7 @@ devuelve el contrato correcto y el agente arranca cargando la config, que es lo 
 manda.
 
 **Lo que NO pudimos aislar.** En el CLI no sabemos por cuál de los dos caminos llegan: `agy -p`
-resuelve su propio workspace y no el directorio desde donde lo lanzás, así que la prueba terminó
+resuelve su propio workspace y no el directorio desde donde lo lanzas, así que la prueba terminó
 corriendo contra un repo que tenía los dos. Y en el IDE pasa lo contrario de lo esperable: la rule
 de `.agents/rules/` **no** aparece en el panel, ni siquiera reiniciando.
 
@@ -159,7 +159,7 @@ si una versión futura deja de hacerlo, no te enterarías —las skills seguirí
 análisis seguiría saliendo, sin las reglas—. Por eso el instalador copia
 `adapters/antigravity/rules/qa-harness.md` a `.agents/rules/qa-harness.md` de este repo, el mismo
 mecanismo que usa Cursor con `.cursor/rules/`. La rule es un puntero: importa `AGENTS.md` y no
-repite nada. Si los dos caminos cargan, leés lo mismo dos veces y no pasa nada.
+repite nada. Si los dos caminos cargan, lees lo mismo dos veces y no pasa nada.
 
 **La importación es `@/AGENTS.md`, no una ruta relativa.** Antigravity resuelve un `@` relativo
 contra la ubicación del archivo de reglas, y un `@/ruta` absoluto lo intenta primero como ruta real
@@ -172,12 +172,12 @@ ahí ganaría ese. No es un escenario realista.)
 por `@mención`, *Always on*, decisión del modelo y glob), pero **no pudimos verificar la sintaxis
 para fijarlo desde el archivo**. Por eso la rule va en markdown pelado, sin frontmatter inventado:
 antes que adivinar un contrato y que el archivo se rechace entero, se deja el archivo válido y se te
-avisa. Después de instalar, comprobá en la UI de Antigravity que `qa-harness` quede en **Always on**.
+avisa. Después de instalar, comprueba en la UI de Antigravity que `qa-harness` quede en **Always on**.
 El `PING-HARNESS` de `SETUP.md` es el que te dice si de verdad cargó.
 
 **El instalador no toca `~/.gemini/GEMINI.md`.** Antigravity también admite reglas globales ahí, pero
 ese archivo es tuyo y puede tener años de contenido personal: pisarlo no tiene vuelta atrás. Si
-querés las reglas del harness en todas tus sesiones, agregá vos la línea `@/ruta/absoluta/AGENTS.md`
+quieres las reglas del harness en todas tus sesiones, agrega tú la línea `@/ruta/absoluta/AGENTS.md`
 a tu `~/.gemini/GEMINI.md`.
 
 ## Equivalencias
@@ -258,24 +258,24 @@ documentación no especifica el formato. Por eso los hooks:
 
 ### Cómo cerrarlo
 
-1. Instalá y reiniciá Antigravity.
-2. Autenticá el MCP de Atlassian.
-3. Pedile que **lea** un ticket (`getJiraIssue`) y que **comente** en uno.
-4. Mirá el log:
+1. Instala y reinicia Antigravity.
+2. Autentica el MCP de Atlassian.
+3. Pídele que **lea** un ticket (`getJiraIssue`) y que **comente** en uno.
+4. Mira el log:
 
    ```bash
    bat ~/.gemini/qa-harness-unknown-tools.log
    ```
 
-5. Si aparece algo, agregá la herramienta al catálogo en `core/gates/catalogo.py`.
+5. Si aparece algo, agrega la herramienta al catálogo en `core/gates/catalogo.py`.
    Es el único lugar: los tres runtimes la heredan.
 
-6. **Verificá que el gate tiene dientes**: pedile que publique un comentario que contenga
+6. **Verifica que el gate tiene dientes**: pídele que publique un comentario que contenga
    `PON-AQUI-EL-ID`. Debe bloquearlo. Si lo publica, el matcher no está enganchando y hay que
    volver al paso 4.
 
 > No saltees el paso 6. Un gate desconectado no avisa que está desconectado: simplemente deja pasar
-> todo, y vos creés que estás protegida.
+> todo, y tú crees que estás protegida.
 
 ## Limitación conocida: las skills grandes pueden no cargar
 
@@ -318,7 +318,7 @@ el humo que este harness existe para evitar.
 entrada —cuándo usarla, la carga de config, la lista ordenada de pasos y las reglas que tienen que
 estar **siempre** en contexto— y el detalle de cada paso se movió **textual** a
 `skills/<skill>/references/`, dentro de la carpeta de la skill. En el paso quedó un puntero
-imperativo: *"Antes de ejecutar este paso, leé `references/<tema>.md`"*.
+imperativo: *"Antes de ejecutar este paso, lee `references/<tema>.md`"*.
 
 | Skill | Referencia | Qué se movió |
 |---|---|---|
@@ -373,11 +373,11 @@ referencias cuando el paso se lo pide, no. Tres motivos concretos:
    para skills. Que aplique a `SKILL.md` es lo más razonable dados los tamaños, pero es inferencia.
 2. Que un modelo diga por qué falló **no es autoritativo**. La autoexplicación de un LLM sobre su
    propio contexto es un indicio, no evidencia.
-3. Que Antigravity resuelva `references/<tema>.md` contra la carpeta de la skill cuando trabajás
+3. Que Antigravity resuelva `references/<tema>.md` contra la carpeta de la skill cuando trabajas
    **fuera** del repo del harness tampoco está probado. La copia es de la carpeta entera, así que
    los archivos están ahí; lo que no sabemos es si el agente conoce la ruta de la carpeta de la
    skill que cargó. Es la misma incertidumbre que ya tienen los punteros a `templates/`: si no
-   encuentra una referencia, pasale la ruta absoluta del repo.
+   encuentra una referencia, pásale la ruta absoluta del repo.
 4. **Que Antigravity lea las copias no está verificado en vivo con este instalador.** Lo que sí
    se vio el 2026-09-28: con symlinks el descubrimiento funciona y la lectura falla por la política
    de workspace, y un archivo real de otra herramienta en la misma carpeta se lee. Que las copias se
@@ -386,13 +386,13 @@ referencias cuando el paso se lo pide, no. Tres motivos concretos:
 
 ### El experimento que lo confirmaría
 
-Si querés cerrarlo de verdad:
+Si quieres cerrarlo de verdad:
 
-1. Reiniciá Antigravity, para que relea las skills con los tamaños nuevos.
-2. Pedile un análisis de ticket **desde fuera del repo del harness**, igual que en la observación.
-3. Mirá dos cosas: que cargue `qa-analisis-ticket` (y no la reporte excluida), y que al llegar a la
+1. Reinicia Antigravity, para que relea las skills con los tamaños nuevos.
+2. Pídele un análisis de ticket **desde fuera del repo del harness**, igual que en la observación.
+3. Mira dos cosas: que cargue `qa-analisis-ticket` (y no la reporte excluida), y que al llegar a la
    documentación **lea `references/publicacion-jira.md`** (o la de tu backend) en vez de improvisar
-   el procedimiento. Repetilo con un `Cierre [AMBIENTE] [TICKET-ID]` para `qa-cierre-ciclo`.
+   el procedimiento. Repítelo con un `Cierre [AMBIENTE] [TICKET-ID]` para `qa-cierre-ciclo`.
 
 Si ahora carga y antes no, el límite era la causa y la partición lo resuelve. Si sigue sin cargar,
 la causa es otra y esta sección hay que reescribirla. Si carga pero no abre las referencias, el
@@ -407,7 +407,7 @@ es de Antigravity. Las referencias llegan igual a los tres: en Claude Code el sy
 como cualquier archivo del repo; en Antigravity la copia también es de la carpeta entera.
 `tests/smoke.sh` verifica que `references/` llegue en Claude Code (symlink) y en Antigravity (copia).
 
-## Las tres opciones que tenés ahora
+## Las tres opciones que tienes ahora
 
 | Entorno | Qué usar | Automatización |
 |---|---|---|

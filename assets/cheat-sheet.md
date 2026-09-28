@@ -103,7 +103,7 @@
 | Cierre de Pruebas | Documentar el cierre de un ambiente | Al terminar cada ciclo |
 | Matriz de Riesgos | Evaluar riesgos pre-release | Día antes del release |
 
-Estos tres no los llenás vos: son los formatos de salida que las skills leen para publicar.
+Estos tres no los llenas tú: son los formatos de salida que las skills leen para publicar.
 
 | Template | Para qué | Quién lo usa |
 |---|---|---|
