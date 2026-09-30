@@ -10,6 +10,32 @@ Funciona con **Claude Code**, **Cursor**, **Antigravity (Gemini)** y **Codex CLI
 instalador** y eliges la herramienta con `--agent`; las skills, la config de tu empresa y tu perfil
 son los mismos archivos para los cuatro.
 
+---
+
+## 🚀 Empezar
+
+**1. Clona el repo** y déjalo en un lugar permanente (la instalación crea enlaces que apuntan acá):
+
+```bash
+git clone https://github.com/adrianagit87/qa-harness-pro.git
+cd qa-harness-pro
+```
+
+**2. Configura tu empresa y tu perfil.** Cada campo está explicado en [`docs/CONFIG.md`](./docs/CONFIG.md).
+
+```bash
+cp companies/_template.json companies/<tu-empresa>.json   # y complétalo
+cp profile/profile.example.json profile/profile.json      # tu nombre, tu rol y tu activeCompany
+```
+
+**3. Valida la config** antes de que nada falle en uso real:
+
+```bash
+./validate-config.sh
+```
+
+**4. Instala para tu herramienta**, reiníciala y ábrela **en la raíz de este repo**:
+
 | Si usas… | Instalas con | Detalle |
 | --- | --- | --- |
 | Claude Code | `./install.sh --agent claude` | [`SETUP.md`](./SETUP.md) |
@@ -21,6 +47,25 @@ son los mismos archivos para los cuatro.
 > `--agent` es obligatorio y no tiene default: `./install.sh` a secas imprime la ayuda y sale con
 > error. Instalar "para Claude" a quien vino por Cursor sería un éxito falso. `./install.sh --help`
 > lista los valores válidos.
+
+**5. Pruébalo sin tocar nada real.** En un chat nuevo:
+
+```
+Analiza el ticket de demo/ticket-ejemplo.md
+```
+
+El ticket de demo está incompleto a propósito: deberías ver un gate ⚠️ con observaciones y unos 20
+casos de prueba. No publica nada en ningún lado. Con tu config lista, el día a día es
+`Analiza PROJ-1234` o `Cierre STG PROJ-1234`.
+
+> Si moviste el repo o lo clonaste de nuevo, vuelve a correr el instalador desde la ruta nueva:
+> **reemplaza** las entradas de la instalación anterior en vez de acumularlas. Y `validate-config.sh`
+> te avisa con un error si algo instalado quedó apuntando a otro clon o a una ruta que ya no existe.
+
+> 📚 **Antes de usarlo en serio, revisa la documentación.** [`SETUP.md`](./SETUP.md) tiene el paso a
+> paso completo: la autenticación de los MCP y las verificaciones de que las reglas y los gates
+> quedaron enganchados. [`ONBOARDING.md`](./ONBOARDING.md) es la guía de ~15 minutos para sumar a
+> otro QA, y [`docs/`](./docs/) explica el método y la config en detalle.
 
 ---
 
@@ -233,26 +278,6 @@ encuentra una plantilla, pásale la ruta absoluta del repo.**
 - **Runtimes:** Claude Code, Cursor, Antigravity (Gemini) y Codex CLI.
 - ¿Tu equipo usa otras herramientas, o quieres sumar otro runtime? [`docs/ADAPTAR-OTRO-STACK.md`](./docs/ADAPTAR-OTRO-STACK.md) te dice exactamente qué tocar y cuánto cuesta.
 - El harness **documenta, no mueve estados**: las transiciones de Jira las haces tú, a mano.
-
----
-
-## 🚀 Empezar
-
-1. Clona el repo y déjalo en un lugar permanente (la instalación crea enlaces que apuntan acá).
-2. `cp companies/_template.json companies/<tu-empresa>.json` y complétalo — cada campo está en
-   [`docs/CONFIG.md`](./docs/CONFIG.md).
-3. `cp profile/profile.example.json profile/profile.json` y pon tu nombre, tu rol y tu `activeCompany`.
-4. `./validate-config.sh` — te dice qué falta antes de que nada falle en uso real.
-5. Instala para tu herramienta con `./install.sh --agent <claude|cursor|antigravity|codex|all>`,
-   reiníciala y ábrela **en la raíz de este repo**.
-
-> Si moviste el repo o lo clonaste de nuevo, vuelve a correr el instalador desde la ruta nueva:
-> **reemplaza** las entradas de la instalación anterior en vez de acumularlas. Y `validate-config.sh`
-> te avisa con un error si algo instalado quedó apuntando a otro clon o a una ruta que ya no existe.
-
-El paso a paso completo, con la autenticación de los MCP y las verificaciones, está en
-[`SETUP.md`](./SETUP.md). Si vas a sumar a otro QA al harness,
-[`ONBOARDING.md`](./ONBOARDING.md) es la guía de ~15 minutos.
 
 ---
 
