@@ -79,6 +79,26 @@ Cada entrada de `list`:
 | `final`               | `true` = no hay ambiente siguiente. Cambia la etiqueta de aprobación y el título de la página |
 | `tone`                | `"técnico"` o `"formal"` — registro de redacción del comentario                      |
 | `separateClosurePage` | `true` = además crea una página de cierre separada                                   |
+| `urls`                | *(opcional)* URLs del ambiente donde la IA puede ejecutar casos en el navegador (`qa-ejecucion-casos`). Cuenta el **origen**: esquema + host + puerto |
+| `production`          | *(opcional)* `true` = es producción. El navegador **nunca** entra solo: te pregunta en el momento, cada vez |
+
+> **Dónde puede navegar la IA.** Solo a los orígenes de `environments.list[].urls` y de
+> `automation.subprojects[].url`. Cualquier otra URL la bloquea el gate del navegador
+> (`core/gates/navegador.py`), también si llega por un link o una redirección. Un origen declarado
+> en un ambiente con `production: true` es producción aunque figure también en un subproyecto.
+> Si un ambiente es `final: true` y tiene `urls` pero no dice `production`, `./validate-config.sh`
+> te avisa: sin esa marca se trata como un ambiente de prueba más.
+>
+> **Previews por ticket.** Si cada ticket se prueba en su propio host (ej. Cloud Run:
+> `us1234---mi-servicio-abc123-uc.a.run.app`), declara un comodín en vez de cada host:
+> `"https://*---mi-servicio-abc123-uc.a.run.app"`. El `*` va solo al inicio del host, cubre un
+> pedazo de una sola etiqueta (nunca un punto) y lo que sigue tiene que identificar al servicio:
+> al menos 8 caracteres fijos en esa etiqueta y dos etiquetas más. `*.a.run.app` o `*.com` no
+> valen: abrirían el navegador a sitios de otros. `./validate-config.sh` lo revisa.
+>
+> **Credenciales de prueba.** Van en `profile/browser-secrets.env` (copia
+> `profile/browser-secrets.example.env`; está en `.gitignore`). La IA escribe solo el *nombre*
+> (`QA_USER_PASSWORD`) y Playwright MCP pone el valor: el valor real nunca pasa por el chat.
 
 **Un solo ambiente** (el equipo prueba únicamente en staging):
 
@@ -99,8 +119,10 @@ Con esta config, `qa-cierre-ciclo` maneja todo el flujo y `qa-cierre-prod` no se
 "environments": {
   "default": "DEV",
   "list": [
-    { "key": "DEV",  "label": "DESARROLLO", "emoji": "🏁", "final": false, "tone": "técnico", "separateClosurePage": false },
-    { "key": "PROD", "label": "PRODUCCIÓN", "emoji": "🚀", "final": true,  "tone": "formal",  "separateClosurePage": true }
+    { "key": "DEV",  "label": "DESARROLLO", "emoji": "🏁", "final": false, "tone": "técnico", "separateClosurePage": false,
+      "urls": ["https://dev.tuempresa.com"], "production": false },
+    { "key": "PROD", "label": "PRODUCCIÓN", "emoji": "🚀", "final": true,  "tone": "formal",  "separateClosurePage": true,
+      "urls": ["https://app.tuempresa.com"], "production": true }
   ]
 }
 ```

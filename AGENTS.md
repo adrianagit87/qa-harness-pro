@@ -11,6 +11,7 @@ trabajes de memoria:
 |---|---|
 | Analizar un ticket, generar casos | `skills/qa-analisis-ticket/SKILL.md` |
 | Casos sin ticket formal (requerimiento, documento o idea) | `skills/qa-generacion-casos/SKILL.md` |
+| Ejecutar en el navegador los casos ya escritos de un ticket | `skills/qa-ejecucion-casos/SKILL.md` |
 | Cerrar un ciclo en cualquier ambiente de `environments` | `skills/qa-cierre-ciclo/SKILL.md` |
 | Cerrar el ciclo en producción (cierre formal + página aparte) | `skills/qa-cierre-prod/SKILL.md` |
 | Evaluar o escribir automatización | `skills/qa-automatizacion/SKILL.md` |
@@ -129,6 +130,11 @@ se resuelve en silencio. El baseline manda sobre la memoria previa: está verifi
    copia y ejecuta contra staging hace daño real.
 4. **El ambiente sale de `environments`** en la config de la empresa. No asumas DEV ni PROD.
 5. **El silencio nunca se convierte en Pass** al cerrar un ciclo.
+6. **En el navegador, la IA ejecuta y la persona confirma.** Solo se navega a las `urls` de los
+   ambientes configurados (y a `automation.subprojects[].url`), nunca a producción salvo pedido
+   explícito en ese momento, y solo con datos de prueba: las credenciales van por nombre de
+   secreto, nunca por valor. Lo que la IA ejecuta es una **propuesta** hasta que la persona la
+   confirma en el cierre; un caso que no se pudo ejecutar nunca queda aprobado.
 
 ## Cómo conversas
 

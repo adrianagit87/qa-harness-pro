@@ -91,6 +91,26 @@ Puedes responder con la tabla completa, o indicar solo los que NO pasaron
 SI ADEMÁS me confirmas explícitamente: "el resto se ejecutó y pasó".
 ```
 
+**Si la IA ejecutó los casos en el navegador** ([[qa-ejecucion-casos]]): busca el informe más
+reciente en `ejecuciones/[TICKET-ID]-[AMBIENTE]-*/informe.md`. Si existe, la tabla del Paso 2
+agrega la columna `Propuesto (IA)` con su resultado y motivo, y pide confirmación así:
+
+```
+La IA ejecutó [n] casos en el navegador ([ruta del informe]). Esto es una PROPUESTA.
+Revisa el informe y las capturas, y responde:
+  - "confirmo la propuesta" → registro cada caso tal como lo propuso la IA, o
+  - la tabla con tus correcciones.
+```
+
+- **La propuesta no es un resultado hasta que la persona la confirma.** "Confirmo la propuesta"
+  (o equivalente inequívoco) vale para todos los casos del informe; cualquier otra respuesta se
+  trata con la regla de abajo.
+- Un ⏭️ Bloqueado o ⏸️ No ejecutado del informe **nunca** se convierte en ✅ Pass por confirmar la
+  propuesta: para cambiarlo, la persona tiene que decir explícitamente que ese caso pasó.
+- En `📋 OBSERVACIONES` va: "Ejecución en navegador por IA ([fecha del informe]), revisada y
+  confirmada por [profile.name]", y los ❌ Fail con lo que se vio.
+- Las capturas del informe se suben a mano (regla 6): menciónalas en el chat, no las adjuntes.
+
 **Regla de resultados (no romper): el silencio nunca se convierte en ✅ Pass.** Solo puedes marcar
 como Pass los casos no mencionados si el usuario lo confirma con una frase explícita ("el resto se
 ejecutó y pasó" o equivalente inequívoco). **Equivalente inequívoco** = una afirmación explícita del

@@ -414,3 +414,20 @@ como cualquier archivo del repo; en Antigravity la copia también es de la carpe
 | Claude Code | el harness original | Completa |
 | Antigravity | este port | Completa, con las 3 diferencias de arriba (la post-edición **no cubre lo que escribe la terminal**) **y la limitación conocida de las skills grandes** (mitigada con `references/`, sin verificar en una instalación real) |
 | Cursor | `adapters/cursor/` | Ver `adapters/cursor/README.md` |
+
+## Pendiente: navegador (`qa-ejecucion-casos`)
+
+La ejecución de casos en el navegador funciona hoy **solo en Claude Code**. En Antigravity la skill
+se detiene en su Paso 0 aunque tengas Playwright MCP conectado, porque acá el navegador no tiene
+gate: nada frenaría una URL de producción, una redirección fuera del ambiente ni una contraseña
+escrita a mano.
+
+Qué falta para habilitarlo (la lógica ya existe en `core/gates/navegador.py`, neutral al runtime):
+
+1. **El server.** Agregar `playwright` a `adapters/antigravity/config/mcp_config.json` lanzando `scripts/playwright-mcp.sh` con ruta absoluta (`{{HARNESS}}`).
+2. **El hook previo.** El matcher `*` ya ve toda llamada: sumar `navegador.revisar_accion` (verificar antes cómo nombra Antigravity las tools MCP; el catálogo reconoce `browser_*` con o sin prefijo).
+3. **El hook posterior.** Verificar si Antigravity entrega la respuesta de la tool en un hook posterior; sin eso no hay detección de redirecciones.
+4. **Preguntar por producción.** El gate devuelve `PREGUNTAR` para un origen de producción. Antigravity tiene `force_ask` (`_agy.decide`): proyectar `PREGUNTAR` ahí.
+5. **Que no muerda fuera del harness.** Los hooks de Antigravity son globales: el gate del navegador tiene que abstenerse fuera de la raíz del harness.
+6. **Tests** como `tests/test_claude_browser_hooks.py`, y sacar Antigravity de la lista del Paso 0
+   de `skills/qa-ejecucion-casos/SKILL.md`.

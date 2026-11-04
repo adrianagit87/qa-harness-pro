@@ -28,6 +28,13 @@ ABSTENERSE se proyecta distinto en cada runtime, y esa diferencia es real:
     cualquier proyecto. Ahí también abstenerse es silencio. Lo que sí falla
     cerrado es la entrada ilegible, porque el matcher garantiza que la
     herramienta es una que el gate gobierna.
+
+PREGUNTAR existe para una sola situación: algo que no se hace por defecto pero
+que la persona puede autorizar EN ESE MOMENTO (hoy, navegar a producción). El
+gate no puede saber qué dijo la persona en el chat, así que no decide: le pasa
+la pregunta al runtime. Claude Code la proyecta como `ask` (su diálogo de
+confirmación). Un runtime que no sabe preguntar la tiene que proyectar como
+bloqueo, nunca como permiso.
 """
 
 from __future__ import annotations
@@ -38,6 +45,7 @@ from typing import Final
 PERMITIR: Final = "permitir"
 BLOQUEAR: Final = "bloquear"
 ABSTENERSE: Final = "abstenerse"
+PREGUNTAR: Final = "preguntar"
 
 
 @dataclass(frozen=True)
@@ -55,6 +63,10 @@ class Verdict:
     def se_abstiene(self) -> bool:
         return self.decision == ABSTENERSE
 
+    @property
+    def pregunta(self) -> bool:
+        return self.decision == PREGUNTAR
+
 
 def permitir() -> Verdict:
     """El gate miró y no tiene nada que objetar."""
@@ -69,3 +81,8 @@ def bloquear(motivo: str) -> Verdict:
 def abstenerse(motivo: str = "") -> Verdict:
     """Esto no es asunto de este gate; el motivo queda por si el runtime lo usa."""
     return Verdict(ABSTENERSE, motivo)
+
+
+def preguntar(motivo: str) -> Verdict:
+    """No se permite solo: hace falta que la persona lo confirme ahora."""
+    return Verdict(PREGUNTAR, motivo)

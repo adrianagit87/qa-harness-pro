@@ -21,7 +21,9 @@
         "emoji": "🏁",
         "final": false,
         "tone": "técnico",
-        "separateClosurePage": false
+        "separateClosurePage": false,
+        "urls": ["https://dev.tuempresa.com"],
+        "production": false
       },
       {
         "key": "PROD",
@@ -29,7 +31,9 @@
         "emoji": "🚀",
         "final": true,
         "tone": "formal",
-        "separateClosurePage": true
+        "separateClosurePage": true,
+        "urls": ["https://app.tuempresa.com"],
+        "production": true
       }
     ]
   },

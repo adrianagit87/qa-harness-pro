@@ -172,3 +172,20 @@ es la misma en los dos casos:
 Reinstalar desde la ruta nueva **reemplaza** la entrada vieja en vez de sumarle otra: los hooks del
 harness se identifican por el nombre del script, no por su ruta, así que reinstalar desde otro lugar
 no te deja hooks duplicados apuntando a un script que ya no existe.
+
+## Pendiente: navegador (`qa-ejecucion-casos`)
+
+La ejecución de casos en el navegador funciona hoy **solo en Claude Code**. En Cursor la skill
+se detiene en su Paso 0 aunque tengas Playwright MCP conectado, porque acá el navegador no tiene
+gate: nada frenaría una URL de producción, una redirección fuera del ambiente ni una contraseña
+escrita a mano.
+
+Qué falta para habilitarlo (la lógica ya existe en `core/gates/navegador.py`, neutral al runtime):
+
+1. **El server.** Agregar `playwright` a `adapters/cursor/config/mcp.json` lanzando `scripts/playwright-mcp.sh` con ruta absoluta (`{{HARNESS}}`).
+2. **El hook previo.** `beforeMCPExecution` ya ve toda llamada MCP: llamar a `navegador.revisar_accion` desde un hook nuevo y proyectar `bloquear` como deny.
+3. **El hook posterior.** Cursor tiene `postToolUse`: leer la respuesta de la tool y llamar a `navegador.revisar_pagina` (verificar antes qué payload trae para una tool MCP).
+4. **Preguntar por producción.** El gate devuelve `PREGUNTAR` para un origen de producción. Cursor admite `ask` en sus permisos: verificar que el hook pueda devolverlo para MCP; si no, proyectarlo como deny.
+5. **Que no muerda fuera del harness.** Los hooks de Cursor son globales (`~/.cursor/hooks.json`): el gate del navegador tiene que abstenerse fuera de la raíz del harness, o rompería tu Playwright MCP en otros proyectos. Ojo también con el caso de "Si Cursor carga los hooks de Claude Code": ahí los hooks de Claude ceden y el navegador quedaría sin gate.
+6. **Tests** como `tests/test_claude_browser_hooks.py`, y sacar Cursor de la lista del Paso 0
+   de `skills/qa-ejecucion-casos/SKILL.md`.

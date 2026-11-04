@@ -100,13 +100,14 @@ Antigravity y Codex es la capa de adaptación (hooks y MCP), nunca el método.
 
 ---
 
-## 🧩 El método: 6 skills
+## 🧩 El método: 7 skills
 
 | Skill | Qué hace |
 | --- | --- |
 | `qa-generacion-casos` | Casos de prueba desde un requerimiento o documento, sin ticket. QA antes de la historia. |
 | `qa-analisis-ticket` | **El corazón.** Gate de calidad del ticket → casos + matriz de riesgos → documentación. |
 | `qa-automatizacion` | Fase opcional: veredicto "¿vale la pena?" + código integrado a tu suite. |
+| `qa-ejecucion-casos` | **Beta, solo Claude Code.** La IA ejecuta en el navegador (Playwright MCP) los casos ya escritos de un ticket, en un ambiente de tu config, y deja por caso qué hizo, qué esperaba, qué vio y una captura. No publica: es una propuesta que confirmas en el cierre. |
 | `qa-cierre-ciclo` | Cierre de ciclo en **cualquier** ambiente de tu config: métricas + comentario en Jira + doc actualizada. |
 | `qa-cierre-prod` | Cierre formal del ambiente final, con página de cierre separada. |
 | `qa-baseline` | Opcional: baseline del proyecto, alimentado solo por casos ✅ Pass del ambiente final, con trazabilidad por regla. Apagado por defecto. |
@@ -191,7 +192,8 @@ qa-harness-pro/
 ## 🛑 Quality gates deterministas
 
 Las reglas escritas orientan al agente. Los hooks ponen límites que no dependen de que el modelo
-recuerde obedecerlos. Son tres, y existen en los cuatro runtimes (`adapters/claude/hooks/`,
+recuerde obedecerlos. Tres existen en los cuatro runtimes; el cuarto, el del navegador, por ahora
+solo en Claude Code. Los tres primeros viven en los adaptadores (`adapters/claude/hooks/`,
 `adapters/cursor/hooks/`, `adapters/antigravity/hooks/`, `adapters/codex/hooks/`), con unit tests
 para cada uno.
 
@@ -227,6 +229,18 @@ lo da por terminado no se ve. En **Antigravity** este camino **no está cubierto
 publicaciones vacías, demasiado cortas o con placeholders de alta confianza (`PON-AQUI`, `{{...}}`,
 `<TICKET>`, etc.). Este gate no reemplaza la decisión humana: comprueba **si el payload está listo**
 para publicarse, no **si autorizas** la escritura.
+
+**4. Gate del navegador** (beta, solo Claude Code; `core/gates/navegador.py`). Cuando la IA ejecuta
+casos con Playwright MCP, revisa cada acción antes y cada página después:
+
+- Solo navega a los orígenes de los ambientes de tu config (`environments.list[].urls`). Para
+  previews por ticket acepta un comodín acotado al servicio (`https://*---mi-servicio-abc123-uc.a.run.app`).
+  Una redirección fuera de esos orígenes frena la corrida.
+- Un ambiente con `production: true` nunca se abre solo: te pregunta en el momento, cada vez.
+- No escribe números de tarjeta ni contraseñas literales. El login lo haces tú en la ventana de
+  Chrome (o, si quieres, con secretos que la IA usa solo por nombre).
+- JavaScript arbitrario (`browser_evaluate`, `browser_run_code_unsafe`) está en `deny`; subir
+  archivos pide confirmación.
 
 ### Qué cambia según la herramienta
 
@@ -276,6 +290,7 @@ encuentra una plantilla, pásale la ruta absoluta del repo.**
   - `"notion"` — requiere además el MCP de Notion.
 - **Ambientes:** los que declares en `environments`. Uno solo, o los que uses.
 - **Runtimes:** Claude Code, Cursor, Antigravity (Gemini) y Codex CLI.
+- **Ejecución en el navegador** (`qa-ejecucion-casos`): beta y solo en Claude Code. En los otros runtimes la skill se detiene, porque todavía no tienen el gate del navegador. Los casos de API y SQL quedan fuera por ahora.
 - ¿Tu equipo usa otras herramientas, o quieres sumar otro runtime? [`docs/ADAPTAR-OTRO-STACK.md`](./docs/ADAPTAR-OTRO-STACK.md) te dice exactamente qué tocar y cuánto cuesta.
 - El harness **documenta, no mueve estados**: las transiciones de Jira las haces tú, a mano.
 

@@ -1567,7 +1567,7 @@ assert_eq "las demás skills del harness quedan copiadas" "$R54/skills/qa-analis
 assert_file "references/ viaja con la copia" "$H54/.gemini/config/skills/qa-analisis-ticket/references/publicacion-jira.md"
 assert_eq "skills.json: se retira SOLO la entrada del harness" "/mis/skills" \
   "$(jq -r '[.entries[].path] | join(" ")' "$H54/.gemini/config/skills.json")"
-assert_eq "el sidecar anota solo lo que copió" "qa-analisis-ticket qa-automatizacion qa-cierre-ciclo qa-generacion-casos" \
+assert_eq "el sidecar anota solo lo que copió" "qa-analisis-ticket qa-automatizacion qa-cierre-ciclo qa-ejecucion-casos qa-generacion-casos" \
   "$(jq -r '.antigravity.skillCopies | join(" ")' "$H54/.gemini/qa-harness-state.json")"
 foto_skills54() { # nombre=destino-del-symlink|instalado-de-la-marca, por entrada de config/skills
   local l
@@ -1589,7 +1589,7 @@ C54="$TMP_ROOT/claude54"; CLAUDE_DIR="$C54" bash "$R54/install.sh" --agent claud
 RC="$(run_validate_en "$R54" "$C54" "$TMP_ROOT/sin-cursor" "$H54/.gemini" "$TMP_ROOT/out-v54.txt" --agent antigravity)"
 assert_eq "validate: exit code 0 (son avisos)" "0" "$RC"
 assert_contains "validate: avisa el directorio real" "Antigravity lee ESO" "$TMP_ROOT/out-v54.txt"
-assert_contains "validate: cuenta las copias al día" "solo 4 de 6 skills copiadas y al día" "$TMP_ROOT/out-v54.txt"
+assert_contains "validate: cuenta las copias al día" "solo 5 de 7 skills copiadas y al día" "$TMP_ROOT/out-v54.txt"
 assert_not_contains "validate: sin cambios en el repo no hay copias desactualizadas" "copia desactualizada" "$TMP_ROOT/out-v54.txt"
 # Deriva: editar una skill en el repo deja la copia vieja, y el validador lo dice.
 echo "línea nueva del método" >> "$R54/skills/qa-analisis-ticket/SKILL.md"

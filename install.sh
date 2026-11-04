@@ -327,7 +327,7 @@ install_claude() {
   fi
   echo "   ▢ corre ./validate-config.sh para confirmar que nada quedó a medias (si ya lo corriste antes de este install, vale igual: ahora también chequea los enlaces)"
   echo "   ▢ abre Claude Code EN LA RAÍZ de este repo — la primera vez te pedirá aprobar los"
-  echo "     servers MCP de .mcp.json (atlassian/notion); la autenticación es OAuth en el navegador"
+  echo "     servers MCP de .mcp.json (atlassian/notion por OAuth en el navegador; playwright local, opcional)"
   echo "   ▢ prueba con demo/ (ver demo/README.md)"
   echo
   echo "ℹ️  Los permisos del harness (deny de transiciones de Jira, ask antes de escribir hacia afuera)"

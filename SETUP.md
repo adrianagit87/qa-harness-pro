@@ -135,7 +135,7 @@ secreto, la autenticación es OAuth en el navegador. No hay nada que copiar.
 Después, abre Claude Code **en la raíz de este repo**:
 
 - La primera vez te pedirá **confiar en el workspace** (el diálogo de trust) y **aprobar los servers
-  de `.mcp.json`** (`atlassian` y `notion`). Acepta ambos: sin el trust, Claude Code ignora los
+  de `.mcp.json`** (`atlassian`, `notion` y `playwright`). Acepta ambos: sin el trust, Claude Code ignora los
   permisos `allow` de `.claude/settings.json` y el harness pierde parte de su configuración de
   seguridad. Después autentica en el navegador (Jira y Confluence vía Atlassian; Notion solo si tu
   `docs.backend` es `notion`). Sin pegar tokens.
@@ -148,7 +148,7 @@ Después, abre Claude Code **en la raíz de este repo**:
 - Los permisos del harness viven en **`.claude/settings.json`** (también versionado): lectura de
   Jira/Confluence/Notion permitida, escritura hacia afuera siempre pregunta, y cambiar estados de
   Jira (`transitionJiraIssue`) **denegado**.
-- En ese mismo archivo viven los tres hooks deterministas: antes de `Bash` se bloquean los comandos
+- En ese mismo archivo viven los hooks deterministas (los del navegador, más abajo): antes de `Bash` se bloquean los comandos
   destructivos; después de cada `Edit` o `Write` se valida el archivo modificado (sintaxis y unit
   tests para Python, `bash -n` para shell, `json.tool` para JSON) y el error vuelve al agente como
   feedback — y lo mismo con lo que un comando de `Bash` escribe en disco (una foto antes del
@@ -181,6 +181,36 @@ Después, abre Claude Code **en la raíz de este repo**:
 >
 > Los nombres de las tools asumen servers llamados `atlassian` y `notion` (como en `.mcp.json`).
 > Si los renombras, ajusta los prefijos `mcp__<server>__*` en `.claude/settings.json`.
+
+#### Ejecución de casos en el navegador (opcional)
+
+Para que la IA ejecute los casos de un ticket en el navegador (`Ejecutar DEV US-1234`, skill
+`qa-ejecucion-casos`). Por ahora **solo en Claude Code**: los demás runtimes no tienen todavía el
+gate del navegador (ver "Pendiente" en el README de cada adaptador).
+
+1. **Node 18+** (`node --version`). El server es Playwright MCP, versión fija en
+   `scripts/playwright-mcp.sh`; la primera vez `npx` lo descarga y puede pedir
+   `npx playwright install chromium`.
+2. **URLs de tus ambientes** en `companies/<empresa>.json`: `environments.list[].urls` y
+   `production: true` en el de producción (ver `docs/CONFIG.md`). Corre `./validate-config.sh`.
+3. **Inicio de sesión**: por defecto lo haces tú. Cuando un caso pide login, la IA se detiene,
+   te pide que inicies sesión en la ventana de Chrome que abrió Playwright y sigue cuando escribes
+   «listo». La contraseña no pasa por la IA ni por ningún archivo. Opcional, si quieres que la IA
+   inicie sesión sola: copia `profile/browser-secrets.example.env` a `profile/browser-secrets.env`
+   y complétalo. La IA solo escribe el nombre (`QA_USER_PASSWORD`); el valor lo pone Playwright
+   MCP. Leer ese archivo está en `deny`.
+4. Abre Claude Code en la raíz y aprueba el server `playwright`.
+
+Qué cuida el harness, aunque la IA se equivoque:
+
+- `validate-browser-action.py` (antes de cada acción): URL fuera de los ambientes → deny;
+  producción → te pregunta en el momento; tarjeta o contraseña literal → deny;
+  `browser_evaluate` y `browser_run_code_unsafe` → en `deny` (con JavaScript se navega sin gate).
+- `check-browser-page.py` (después de cada acción): si un link o una redirección dejó al navegador
+  fuera de alcance, frena y el caso queda Bloqueado.
+- El navegador es aislado (`--isolated`): no usa tus sesiones ni tus cookies reales.
+- Capturas e informes quedan en `ejecuciones/` (en `.gitignore`). Nada se publica: el informe se
+  registra con `Cierre AMBIENTE TICKET-ID`, donde confirmas cada resultado.
 
 ### 5b. Cursor
 

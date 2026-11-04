@@ -606,6 +606,51 @@ if [ -n "$ACTIVE" ] && [ -f "companies/$ACTIVE.json" ]; then
     FRAMEWORK="$(json_get "$COMPANY_FILE" "d.get('automation',{}).get('framework','')")"
     [ -z "$FRAMEWORK" ] && warn "automation sin configurar — qa-automatizacion solo podrá evaluar, no generar código integrado (OK si no automatizas aún)."
 
+    # -- URLs de los ambientes (qa-ejecucion-casos): opcionales, pero si están, bien formadas.
+    #    Se reusa core/gates/navegador: el validador y el gate no pueden opinar distinto. --
+    while IFS="$(printf '\t')" read -r nivel mensaje; do
+      case "$nivel" in
+        FAIL) fail "$mensaje" ;;
+        WARN) warn "$mensaje" ;;
+        OK)   ok "$mensaje" ;;
+      esac
+    done < <(python3 - "$COMPANY_FILE" <<'PYEOF'
+import json, sys
+sys.path.insert(0, ".")
+from core.gates import navegador
+
+config = json.load(open(sys.argv[1], encoding="utf-8"))
+ambientes = config.get("environments", {}).get("list", []) if isinstance(config.get("environments"), dict) else []
+hay_urls = False
+for amb in ambientes if isinstance(ambientes, list) else []:
+    if not isinstance(amb, dict):
+        continue
+    key = amb.get("key", "?")
+    if "production" in amb and not isinstance(amb["production"], bool):
+        print(f"FAIL\tenvironments: '{key}'.production tiene que ser true o false (sin comillas).")
+    if "urls" not in amb:
+        continue
+    urls = amb["urls"]
+    if not isinstance(urls, list) or not all(isinstance(u, str) for u in urls):
+        print(f"FAIL\tenvironments: '{key}'.urls tiene que ser una lista de URLs (ej. [\"https://dev.tuempresa.com\"]).")
+        continue
+    for url in urls:
+        if navegador.origen_configurado(url) is None:
+            print(f"FAIL\tenvironments: '{key}'.urls tiene una URL inválida ('{url}') — solo http:// o https://; un comodín va solo al inicio del host y acotado al servicio (ej. https://*---mi-servicio-abc123-uc.a.run.app).")
+        elif "tuempresa" in url.lower():
+            print(f"FAIL\tenvironments: '{key}'.urls sigue en placeholder ('{url}') — pon la URL real del ambiente o borra 'urls'.")
+        else:
+            hay_urls = True
+    if urls and amb.get("final") is True and amb.get("production") is not True:
+        print(f"WARN\tenvironments: '{key}' es final y tiene urls pero no dice \"production\": true — si es producción, márcalo: sin eso, qa-ejecucion-casos lo trata como un ambiente de prueba más.")
+if hay_urls:
+    alcance = navegador.alcance_de_config(config)
+    print(f"OK\tambientes para ejecutar casos: {len(alcance.permitidos)} origen(es) de prueba, {len(alcance.produccion)} de producción (siempre pregunta).")
+else:
+    print("WARN\tningún ambiente declara 'urls' — qa-ejecucion-casos no puede abrir el navegador (OK si no ejecutas casos con la IA).")
+PYEOF
+)
+
     # -- baseline es opcional: sin el bloque, o con enabled != true, la función está apagada
     #    y no se valida nada (el template trae el bloque apagado a propósito) --
     HAS_BASELINE="$(json_get "$COMPANY_FILE" "'baseline' in d")"

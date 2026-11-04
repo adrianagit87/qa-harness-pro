@@ -114,6 +114,22 @@ def denegar(mensaje: str) -> None:
     )
 
 
+def preguntar(mensaje: str) -> None:
+    """PreToolUse: ask — Claude Code le muestra la confirmación a la persona."""
+    print(
+        json.dumps(
+            {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "ask",
+                    "permissionDecisionReason": mensaje,
+                }
+            },
+            ensure_ascii=False,
+        )
+    )
+
+
 def frenar(mensaje: str) -> None:
     """PostToolUse: block, con el feedback que vuelve al modelo."""
     print(json.dumps({"decision": "block", "reason": mensaje[-MAX_FEEDBACK:]}, ensure_ascii=False))

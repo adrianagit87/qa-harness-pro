@@ -71,6 +71,68 @@ class CatalogoContraLaConfiguracion(unittest.TestCase):
                 self.assertIn(identificador, VALIDATE.read_text(encoding="utf-8"))
 
 
+class NavegadorContraLaConfiguracion(unittest.TestCase):
+    def setUp(self) -> None:
+        self.settings = json.loads(SETTINGS.read_text(encoding="utf-8"))
+        self.permisos = self.settings["permissions"]
+
+    def grupo_del_hook(self, evento: str, nombre_del_hook: str) -> str:
+        for grupo in self.settings["hooks"][evento]:
+            for hook in grupo.get("hooks", []):
+                if any(arg.endswith(f"adapters/claude/hooks/{nombre_del_hook}") for arg in hook.get("args", [])):
+                    return grupo["matcher"]
+        raise AssertionError(f"'{nombre_del_hook}' no está enganchado en {evento}")
+
+    def test_los_dos_hooks_cubren_todo_el_server(self) -> None:
+        esperado = f"{catalogo.PREFIJO_NAVEGADOR}.*"
+        self.assertEqual(self.grupo_del_hook("PreToolUse", "validate-browser-action.py"), esperado)
+        self.assertEqual(self.grupo_del_hook("PostToolUse", "check-browser-page.py"), esperado)
+
+    def test_javascript_arbitrario_en_deny_y_archivos_en_ask(self) -> None:
+        for identificador in catalogo.NAVEGADOR_PROHIBIDAS:
+            with self.subTest(id=identificador):
+                self.assertIn(identificador, self.permisos["deny"])
+        for identificador in catalogo.NAVEGADOR_CON_ARCHIVOS:
+            with self.subTest(id=identificador):
+                self.assertIn(identificador, self.permisos["ask"])
+
+    def test_ninguna_tool_prohibida_o_con_archivos_queda_en_allow(self) -> None:
+        sensibles = set(catalogo.NAVEGADOR_PROHIBIDAS) | set(catalogo.NAVEGADOR_CON_ARCHIVOS)
+        self.assertEqual(sensibles & set(self.permisos["allow"]), set())
+
+    def test_el_mcp_se_lanza_con_el_script_y_version_fija(self) -> None:
+        server = json.loads((RAIZ / ".mcp.json").read_text(encoding="utf-8"))["mcpServers"]["playwright"]
+        self.assertEqual(server["args"], ["scripts/playwright-mcp.sh"])
+        script = (RAIZ / "scripts" / "playwright-mcp.sh").read_text(encoding="utf-8")
+        self.assertRegex(script, r'(?m)^VERSION="\d+\.\d+\.\d+"$')
+        self.assertNotIn("@latest", script)
+        self.assertIn("--isolated", script)
+
+    def test_la_ventana_es_visible_para_el_login_manual(self) -> None:
+        # El login manual (la persona escribe usuario y contraseña) necesita la ventana visible.
+        script = (RAIZ / "scripts" / "playwright-mcp.sh").read_text(encoding="utf-8")
+        self.assertNotIn("--headless", script)
+        skill = (RAIZ / "skills" / "qa-ejecucion-casos" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("login manual", skill)
+        self.assertIn("escribe «listo»", skill)
+
+    def test_jira_only_pide_confirmar_el_comentario_antes_de_usarlo(self) -> None:
+        skill = (RAIZ / "skills" / "qa-ejecucion-casos" / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("Camino Jira-only", skill)
+        self.assertIn("¿Uso este comentario como fuente de los casos?", skill)
+        self.assertIn("nunca los mezcles", skill)
+
+    def test_el_plan_pide_los_datos_y_los_parciales_nunca_son_pass(self) -> None:
+        carpeta = RAIZ / "skills" / "qa-ejecucion-casos"
+        skill = (carpeta / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("DATOS QUE NECESITO ANTES DE ARRANCAR", skill)
+        self.assertIn("Pide todos los datos en el plan", skill)
+        self.assertIn("Un caso parcial **nunca** termina en ✅ Pass", skill)
+        clasificacion = (carpeta / "references" / "clasificacion-resultados.md").read_text(encoding="utf-8")
+        self.assertIn("**Casos parciales**", clasificacion)
+        self.assertIn('incluido un "Sí, parcial" del plan', clasificacion)
+
+
 class Normalizador(unittest.TestCase):
     def test_cada_id_canonico_se_reconoce_a_si_mismo(self) -> None:
         for entrada in catalogo.TRANSICIONES + catalogo.PUBLICACIONES:

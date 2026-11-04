@@ -65,6 +65,9 @@ Igual que [[qa-cierre-ciclo]] Paso 1 (búsqueda según `docs.backend`, extrae la
 ### Paso 2 — Confirmar resultados
 
 Igual que DEV: presenta la tabla de casos y pide Pass/Fail/Bloqueado/No ejecutado + bugs + observaciones.
+Si hay un informe de [[qa-ejecucion-casos]] para este ticket y ambiente, se muestra como propuesta
+con las mismas reglas del Paso 2 de [[qa-cierre-ciclo]]: no es resultado hasta que la persona lo
+confirma.
 
 **Aplica la misma regla de resultados que [[qa-cierre-ciclo]]: el silencio nunca se convierte en
 ✅ Pass.** El usuario puede reportar solo los casos que fallaron ÚNICAMENTE si además confirma con

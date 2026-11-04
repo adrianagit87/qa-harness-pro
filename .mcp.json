@@ -7,6 +7,13 @@
     "notion": {
       "type": "http",
       "url": "https://mcp.notion.com/mcp"
+    },
+    "playwright": {
+      "type": "stdio",
+      "command": "bash",
+      "args": [
+        "scripts/playwright-mcp.sh"
+      ]
     }
   }
 }

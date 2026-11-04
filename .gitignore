@@ -3,8 +3,14 @@ companies/*.json
 !companies/_template.json
 profile/*.json
 !profile/profile.example.json
+# Credenciales de prueba del navegador: valores reales, nunca se versionan
+profile/*.env
+!profile/browser-secrets.example.env
 # El baseline es conocimiento de TU producto: tampoco se versiona acá
 baseline/
+# Ejecuciones de casos en el navegador: capturas e informes de TU aplicación
+ejecuciones/
+.playwright-mcp/
 
 # Secretos y config local
 # (.mcp.json SÍ se versiona: no contiene secretos — la autenticación es OAuth en el navegador)

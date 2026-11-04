@@ -276,3 +276,20 @@ apuntando a la ruta vieja. `./validate-config.sh --agent codex` lo caza (ruta qu
 
 Reinstalar desde la ruta nueva **reemplaza** los hooks y el bloque en vez de sumar otros. Como el
 command cambió, **vuelve a pasar por `/hooks`**.
+
+## Pendiente: navegador (`qa-ejecucion-casos`)
+
+La ejecución de casos en el navegador funciona hoy **solo en Claude Code**. En Codex la skill
+se detiene en su Paso 0 aunque tengas Playwright MCP conectado, porque acá el navegador no tiene
+gate: nada frenaría una URL de producción, una redirección fuera del ambiente ni una contraseña
+escrita a mano.
+
+Qué falta para habilitarlo (la lógica ya existe en `core/gates/navegador.py`, neutral al runtime):
+
+1. **El server.** Agregar `[mcp_servers.playwright]` a `adapters/codex/config/mcp.toml` con `scripts/playwright-mcp.sh`, y `disabled_tools = ["browser_evaluate", "browser_run_code_unsafe"]` como segunda capa.
+2. **El hook previo.** El matcher `mcp__.*` ya engancha toda llamada MCP: sumar la llamada a `navegador.revisar_accion` y proyectar `bloquear` como deny.
+3. **El hook posterior.** Verificar si el `PostToolUse` de Codex recibe la respuesta de las tools MCP; si no la recibe, no hay forma de detectar redirecciones y eso tiene que quedar documentado como límite.
+4. **Preguntar por producción.** El gate devuelve `PREGUNTAR` para un origen de producción. Codex no tiene `ask` desde un hook: proyectarlo como deny, y usar `approval_mode = "prompt"` en `browser_navigate` para que la persona confirme cada navegación.
+5. **Que no muerda fuera del harness.** Los hooks de Codex son globales: hoy `mcp__playwright__browser_close` pasa en silencio a propósito (`tests/test_codex_hooks.py`), para no romper tu Playwright MCP en otros proyectos. El gate nuevo tiene que abstenerse fuera de la raíz del harness.
+6. **Tests** como `tests/test_claude_browser_hooks.py`, y sacar Codex de la lista del Paso 0
+   de `skills/qa-ejecucion-casos/SKILL.md`.

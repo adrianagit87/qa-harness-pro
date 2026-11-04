@@ -71,6 +71,25 @@ PUBLICACIONES: tuple[Herramienta, ...] = (
     ),
 )
 
+# Navegador (Playwright MCP): lo revisa core/gates/navegador. Toda tool
+# `browser_*` del server se gobierna; estas tienen regla propia.
+PREFIJO_NAVEGADOR = "mcp__playwright__"
+
+# Ejecutan JavaScript o código Playwright arbitrario: con eso se navega, se
+# escribe o se lee sin pasar por el gate. Prohibidas siempre.
+NAVEGADOR_PROHIBIDAS: tuple[str, ...] = (
+    "mcp__playwright__browser_evaluate",
+    "mcp__playwright__browser_run_code_unsafe",
+)
+
+# Suben archivos del disco a la aplicación: solo con confirmación en el momento.
+NAVEGADOR_CON_ARCHIVOS: tuple[str, ...] = (
+    "mcp__playwright__browser_file_upload",
+    "mcp__playwright__browser_drop",
+)
+
+_TOOL_DE_NAVEGADOR = re.compile(r"(?:^|playwright.*?[_.\-])(browser_[a-z_]+)$", re.IGNORECASE)
+
 IDS_TRANSICION: tuple[str, ...] = tuple(entrada.id for entrada in TRANSICIONES)
 IDS_PUBLICACION: tuple[str, ...] = tuple(entrada.id for entrada in PUBLICACIONES)
 
@@ -93,3 +112,17 @@ def es_transicion(nombre: object) -> bool:
 def es_publicacion(nombre: object) -> bool:
     """¿Es una escritura hacia afuera que este harness sabe validar?"""
     return canonico(nombre) in IDS_PUBLICACION
+
+
+def canonico_navegador(nombre: object) -> str | None:
+    """Id canónico de una tool del navegador (`mcp__playwright__browser_x`), o None.
+
+    Reconoce `mcp__playwright__browser_navigate`, `mcp_playwright_browser_navigate`,
+    `playwright.browser_navigate` y el nombre pelado `browser_navigate`.
+    """
+    if not isinstance(nombre, str) or not nombre:
+        return None
+    encontrado = _TOOL_DE_NAVEGADOR.search(nombre)
+    if encontrado is None:
+        return None
+    return PREFIJO_NAVEGADOR + encontrado.group(1).lower()

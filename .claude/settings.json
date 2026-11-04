@@ -7,7 +7,27 @@
       "mcp__atlassian__getConfluencePage",
       "mcp__atlassian__getConfluenceSpaces",
       "mcp__notion__notion-search",
-      "mcp__notion__notion-fetch"
+      "mcp__notion__notion-fetch",
+      "mcp__playwright__browser_snapshot",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_console_messages",
+      "mcp__playwright__browser_network_requests",
+      "mcp__playwright__browser_network_request",
+      "mcp__playwright__browser_find",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_tabs",
+      "mcp__playwright__browser_close",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_navigate_back",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_hover",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_fill_form",
+      "mcp__playwright__browser_select_option",
+      "mcp__playwright__browser_press_key",
+      "mcp__playwright__browser_drag",
+      "mcp__playwright__browser_handle_dialog"
     ],
     "ask": [
       "mcp__atlassian__addCommentToJiraIssue",
@@ -16,12 +36,17 @@
       "mcp__atlassian__createConfluencePage",
       "mcp__atlassian__updateConfluencePage",
       "mcp__notion__notion-create-pages",
-      "mcp__notion__notion-update-page"
+      "mcp__notion__notion-update-page",
+      "mcp__playwright__browser_file_upload",
+      "mcp__playwright__browser_drop"
     ],
     "deny": [
       "mcp__atlassian__transitionJiraIssue",
+      "mcp__playwright__browser_evaluate",
+      "mcp__playwright__browser_run_code_unsafe",
       "Read(./.env)",
-      "Read(./**/*.local.json)"
+      "Read(./**/*.local.json)",
+      "Read(./profile/browser-secrets.env)"
     ]
   },
   "hooks": {
@@ -62,6 +87,18 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "mcp__playwright__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/validate-browser-action.py"
+            ]
+          }
+        ]
       }
     ],
     "PostToolUse": [
@@ -88,6 +125,18 @@
               "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/check-after-shell.py"
             ],
             "timeout": 120
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__playwright__.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/check-browser-page.py"
+            ]
           }
         ]
       }
