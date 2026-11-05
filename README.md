@@ -137,8 +137,9 @@ qa-harness-pro/
 │   └── rules/qa-harness.mdc  ← la rule en scope de proyecto (Cursor solo lee esta ruta)
 ├── .github/
 │   └── workflows/ci.yml      ← los unit tests de los hooks en cada push
-├── core/                     ← la lógica de los 3 gates, escrita una sola vez
+├── core/                     ← la lógica de los gates, escrita una sola vez
 │   ├── gates/                ← contract.py · catalogo.py · destructivos.py · post_edicion.py · post_shell.py · publicacion.py
+│   │                           · navegador.py · sql.py · empresa.py (navegador y SQL: solo Claude Code)
 │   └── texto.py              ← normalización de texto compartida por los gates
 ├── adapters/                 ← lo único que cambia entre herramientas: el puente a cada runtime
 │   ├── claude/               ← adaptador de Claude Code
@@ -148,7 +149,10 @@ qa-harness-pro/
 │   │       ├── check-after-edit.py          ← PostToolUse: valida archivos editados
 │   │       ├── snapshot-before-shell.py     ← PreToolUse Bash: foto del disco antes del comando
 │   │       ├── check-after-shell.py         ← PostToolUse(Failure) Bash: valida lo que escribió el comando
-│   │       └── validate-external-write.py   ← PreToolUse: revisa payloads antes de publicar
+│   │       ├── validate-external-write.py   ← PreToolUse: revisa payloads antes de publicar
+│   │       ├── validate-browser-action.py   ← PreToolUse Playwright: dónde y qué escribe el navegador
+│   │       ├── check-browser-page.py        ← PostToolUse Playwright: dónde terminó la página
+│   │       └── validate-sql-query.py        ← PreToolUse Postgres: solo lectura, solo la base de prueba
 │   ├── cursor/               ← adaptador de Cursor
 │   │   ├── README.md
 │   │   ├── config/           ← hooks.json · mcp.json
@@ -192,7 +196,7 @@ qa-harness-pro/
 ## 🛑 Quality gates deterministas
 
 Las reglas escritas orientan al agente. Los hooks ponen límites que no dependen de que el modelo
-recuerde obedecerlos. Tres existen en los cuatro runtimes; el cuarto, el del navegador, por ahora
+recuerde obedecerlos. Tres existen en los cuatro runtimes; el del navegador y el de SQL, por ahora
 solo en Claude Code. Los tres primeros viven en los adaptadores (`adapters/claude/hooks/`,
 `adapters/cursor/hooks/`, `adapters/antigravity/hooks/`, `adapters/codex/hooks/`), con unit tests
 para cada uno.
@@ -242,6 +246,18 @@ casos con Playwright MCP, revisa cada acción antes y cada página después:
 - JavaScript arbitrario (`browser_evaluate`, `browser_run_code_unsafe`) está en `deny`; subir
   archivos pide confirmación.
 
+**5. Gate de SQL** (beta, solo Claude Code; `core/gates/sql.py`). Si tienes un MCP de Postgres
+(tools `pg_*`, ej. `@henkey/postgres-mcp-server`), la IA solo puede **leer** la base que un
+ambiente de prueba declara en `environments.list[].database`:
+
+- Solo `pg_execute_query`, con **una** sentencia `SELECT` o `WITH`. SQL libre, mutaciones, gestión
+  de la base e import/export: bloqueados.
+- La base de un ambiente con `production: true` se bloquea siempre, ni para leer. Un server que
+  ningún ambiente declara, también. Y `connectionString` no se acepta.
+- Frena los CTE que escriben, `SELECT INTO`, `FOR UPDATE/SHARE` y funciones como `dblink`,
+  `pg_read_file` o `set_config`.
+- Es una segunda capa: conecta el MCP con un **usuario de solo lectura**.
+
 ### Qué cambia según la herramienta
 
 | | Claude Code | Cursor | Antigravity | Codex CLI |
@@ -290,7 +306,7 @@ encuentra una plantilla, pásale la ruta absoluta del repo.**
   - `"notion"` — requiere además el MCP de Notion.
 - **Ambientes:** los que declares en `environments`. Uno solo, o los que uses.
 - **Runtimes:** Claude Code, Cursor, Antigravity (Gemini) y Codex CLI.
-- **Ejecución en el navegador** (`qa-ejecucion-casos`): beta y solo en Claude Code. En los otros runtimes la skill se detiene, porque todavía no tienen el gate del navegador. Los casos de API y SQL quedan fuera por ahora.
+- **Ejecución en el navegador** (`qa-ejecucion-casos`): beta y solo en Claude Code. En los otros runtimes la skill se detiene, porque todavía no tienen el gate del navegador. Los casos de API y SQL todavía no se ejecutan: quedan como «No ejecutado» (el gate de SQL ya protege la base; la ejecución llega en la próxima versión).
 - ¿Tu equipo usa otras herramientas, o quieres sumar otro runtime? [`docs/ADAPTAR-OTRO-STACK.md`](./docs/ADAPTAR-OTRO-STACK.md) te dice exactamente qué tocar y cuánto cuesta.
 - El harness **documenta, no mueve estados**: las transiciones de Jira las haces tú, a mano.
 

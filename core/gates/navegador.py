@@ -35,7 +35,7 @@ from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import urlsplit
 
-from . import contract
+from . import contract, empresa
 from .catalogo import NAVEGADOR_CON_ARCHIVOS, NAVEGADOR_PROHIBIDAS, canonico_navegador
 
 # Relativa a la raíz del harness. Está en .gitignore: tiene valores reales.
@@ -381,21 +381,10 @@ def nombres_de_secretos(ruta: Path) -> frozenset[str]:
 
 def cargar_alcance(raiz_harness: Any) -> Alcance:
     """profile/profile.json -> activeCompany -> companies/<empresa>.json. Falla cerrado."""
-    if not isinstance(raiz_harness, (str, Path)):
-        return Alcance(error="no sé dónde está la raíz del harness para leer la config.")
-    raiz = Path(raiz_harness)
-    try:
-        perfil = json.loads((raiz / "profile" / "profile.json").read_text(encoding="utf-8"))
-        empresa = perfil.get("activeCompany") if isinstance(perfil, dict) else None
-        if not isinstance(empresa, str) or not empresa.strip():
-            return Alcance(error="profile.activeCompany está vacío: no sé qué ambientes son válidos.")
-        empresa = empresa.strip()
-        if "/" in empresa or "\\" in empresa or empresa.startswith("."):
-            return Alcance(error=f"profile.activeCompany inválido ({empresa!r}).")
-        config = json.loads((raiz / "companies" / f"{empresa}.json").read_text(encoding="utf-8"))
-    except (OSError, ValueError) as error:
-        return Alcance(error=f"no pude leer la config de la empresa activa ({error}).")
-    return alcance_de_config(config, nombres_de_secretos(raiz / RUTA_SECRETOS))
+    config, error = empresa.leer_config_activa(raiz_harness)
+    if config is None:
+        return Alcance(error=error)
+    return alcance_de_config(config, nombres_de_secretos(Path(raiz_harness) / RUTA_SECRETOS))
 
 
 # ── Producción confirmada en esta sesión ────────────────────────────────────

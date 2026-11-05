@@ -643,6 +643,19 @@ for amb in ambientes if isinstance(ambientes, list) else []:
             hay_urls = True
     if urls and amb.get("final") is True and amb.get("production") is not True:
         print(f"WARN\tenvironments: '{key}' es final y tiene urls pero no dice \"production\": true — si es producción, márcalo: sin eso, qa-ejecucion-casos lo trata como un ambiente de prueba más.")
+from core.gates import sql
+for amb in ambientes if isinstance(ambientes, list) else []:
+    if not isinstance(amb, dict) or "database" not in amb:
+        continue
+    key = amb.get("key", "?")
+    server = amb["database"]
+    if not isinstance(server, str) or not sql.bases_de_config({"environments": {"list": [{"database": server}]}}).prueba:
+        print(f"FAIL\tenvironments: '{key}'.database tiene que ser el nombre de un MCP de Postgres (ej. \"postgres-dev\"), sin espacios.")
+    elif amb.get("production") is True:
+        print(f"WARN\tenvironments: '{key}' es producción: el gate de SQL bloquea siempre su base «{server}», ni para leer.")
+bases = sql.bases_de_config(config)
+if bases.prueba:
+    print(f"OK\tbase(s) de prueba para consultas de solo lectura: {', '.join(sorted(bases.prueba))}. La frontera real es un usuario de base de solo lectura.")
 if hay_urls:
     alcance = navegador.alcance_de_config(config)
     print(f"OK\tambientes para ejecutar casos: {len(alcance.permitidos)} origen(es) de prueba, {len(alcance.produccion)} de producción (siempre pregunta).")

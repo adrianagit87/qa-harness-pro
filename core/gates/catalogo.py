@@ -88,6 +88,13 @@ NAVEGADOR_CON_ARCHIVOS: tuple[str, ...] = (
     "mcp__playwright__browser_drop",
 )
 
+# SQL (MCP de Postgres, ej. @henkey/postgres-mcp-server): lo revisa core/gates/sql.
+# Toda tool `pg_*` de cualquier server se gobierna; el server tiene que ser la
+# base de un ambiente de prueba. La única tool permitida es la de lectura.
+MATCHER_SQL = "mcp__.*__pg_.*"
+SQL_LECTURA = "pg_execute_query"
+_TOOL_DE_SQL = re.compile(r"^mcp__([A-Za-z0-9_-]+?)__(pg_[a-z_]+)$")
+
 _TOOL_DE_NAVEGADOR = re.compile(r"(?:^|playwright.*?[_.\-])(browser_[a-z_]+)$", re.IGNORECASE)
 
 IDS_TRANSICION: tuple[str, ...] = tuple(entrada.id for entrada in TRANSICIONES)
@@ -126,3 +133,11 @@ def canonico_navegador(nombre: object) -> str | None:
     if encontrado is None:
         return None
     return PREFIJO_NAVEGADOR + encontrado.group(1).lower()
+
+
+def canonico_sql(nombre: object) -> tuple[str, str] | None:
+    """(server, tool) de una tool de un MCP de Postgres (`mcp__postgres-dev__pg_x`), o None."""
+    if not isinstance(nombre, str):
+        return None
+    encontrado = _TOOL_DE_SQL.fullmatch(nombre)
+    return (encontrado.group(1), encontrado.group(2)) if encontrado else None

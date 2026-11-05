@@ -81,6 +81,7 @@ Cada entrada de `list`:
 | `separateClosurePage` | `true` = además crea una página de cierre separada                                   |
 | `urls`                | *(opcional)* URLs del ambiente donde la IA puede ejecutar casos en el navegador (`qa-ejecucion-casos`). Cuenta el **origen**: esquema + host + puerto |
 | `production`          | *(opcional)* `true` = es producción. El navegador **nunca** entra solo: te pregunta en el momento, cada vez |
+| `database`            | *(opcional)* Nombre del MCP de Postgres con la base de este ambiente (ej. `"postgres-dev"`). La IA puede **leerla** para verificar casos. Solo Claude Code |
 
 > **Dónde puede navegar la IA.** Solo a los orígenes de `environments.list[].urls` y de
 > `automation.subprojects[].url`. Cualquier otra URL la bloquea el gate del navegador
@@ -99,6 +100,16 @@ Cada entrada de `list`:
 > **Credenciales de prueba.** Van en `profile/browser-secrets.env` (copia
 > `profile/browser-secrets.example.env`; está en `.gitignore`). La IA escribe solo el *nombre*
 > (`QA_USER_PASSWORD`) y Playwright MCP pone el valor: el valor real nunca pasa por el chat.
+>
+> **Qué base puede consultar la IA.** Solo la del MCP que nombra `database` en un ambiente de
+> prueba, y solo para leer: el gate de SQL (`core/gates/sql.py`) deja pasar únicamente
+> `pg_execute_query` con **una** sentencia `SELECT` o `WITH`. Bloquea siempre la base de un
+> ambiente con `production: true` (ni para leer), cualquier server que ningún ambiente declare, el
+> parámetro `connectionString`, el SQL libre, las mutaciones, la gestión de la base y las funciones
+> que leen archivos del servidor o ejecutan SQL desde un texto. Cubre los MCP cuyas tools empiezan
+> con `pg_` (ej. `@henkey/postgres-mcp-server`). **El gate es una segunda capa**: conecta el MCP
+> con un usuario de base de **solo lectura**. Una función propia de la base que escribe no se ve
+> en el texto de la consulta, y un superusuario puede todo.
 
 **Un solo ambiente** (el equipo prueba únicamente en staging):
 

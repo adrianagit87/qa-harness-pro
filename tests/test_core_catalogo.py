@@ -133,6 +133,23 @@ class NavegadorContraLaConfiguracion(unittest.TestCase):
         self.assertIn('incluido un "Sí, parcial" del plan', clasificacion)
 
 
+class SqlContraLaConfiguracion(unittest.TestCase):
+    def test_el_hook_de_sql_cubre_toda_tool_pg(self) -> None:
+        self.assertEqual(matcher_del_hook("validate-sql-query.py"), catalogo.MATCHER_SQL)
+
+    def test_el_matcher_y_el_reconocedor_opinan_igual(self) -> None:
+        for nombre in ("mcp__postgres-dev__pg_execute_query", "mcp__postgres-prod__pg_execute_sql",
+                       "mcp__pg_local__pg_manage_users"):
+            with self.subTest(nombre=nombre):
+                self.assertRegex(nombre, f"^(?:{catalogo.MATCHER_SQL})$")
+                self.assertIsNotNone(catalogo.canonico_sql(nombre))
+        self.assertEqual(catalogo.canonico_sql("mcp__postgres-dev__pg_execute_query"),
+                         ("postgres-dev", "pg_execute_query"))
+
+    def test_validate_config_conoce_el_campo_database(self) -> None:
+        self.assertIn("sql.bases_de_config", VALIDATE.read_text(encoding="utf-8"))
+
+
 class Normalizador(unittest.TestCase):
     def test_cada_id_canonico_se_reconoce_a_si_mismo(self) -> None:
         for entrada in catalogo.TRANSICIONES + catalogo.PUBLICACIONES:

@@ -99,6 +99,18 @@
             ]
           }
         ]
+      },
+      {
+        "matcher": "mcp__.*__pg_.*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3",
+            "args": [
+              "${CLAUDE_PROJECT_DIR}/adapters/claude/hooks/validate-sql-query.py"
+            ]
+          }
+        ]
       }
     ],
     "PostToolUse": [
